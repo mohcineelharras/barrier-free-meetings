@@ -1,0 +1,11 @@
+{
+  "name": "Sino",
+  "description": "Refined live Chinese to French transcription and translation.",
+  "requestFramePermissions": [
+    "microphone"
+  ],
+  "majorCapabilities": [
+    "speech_recognition",
+    "translation"
+  ]
+}
