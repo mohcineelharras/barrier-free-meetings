@@ -6,16 +6,11 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useSpeechToText, TranscriptSegment } from './hooks/useSpeechToText';
 import { translateChineseToFrench } from './services/gemini';
-import { TranscriptItem } from './components/TranscriptItem';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion } from 'motion/react';
 import { 
    Mic, 
-   Download, 
    Trash2, 
-   Radio, 
-   AlertCircle,
-   Settings,
-   History
+   AlertCircle
 } from 'lucide-react';
 
 export default function App() {
