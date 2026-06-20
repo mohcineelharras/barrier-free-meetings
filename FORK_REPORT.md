@@ -95,3 +95,14 @@ original:
    `SANITIZATION_REPORT.md`). The only API keys ever present lived in
    the local `.env` file (gitignored) and never made it into the
    staging copy.
+
+## Live deployment
+
+- **GitHub:** https://github.com/mohcineelharras/barrier-free-meetings
+  (renamed from `transcribe-easy`; 0 forks/stars at rename time so no
+  history lost)
+- **HF Spaces:** https://huggingface.co/spaces/mohcineelharras/barrier-free-meetings
+  (Docker SDK, cpu-basic, running; secrets `OPENROUTER_API_KEY` and
+  `GOOGLE_AI_STUDIO_API_KEY` set from the original `.env` at deploy
+  time — **rotate and update the Space secrets when you rotate
+  provider keys**)

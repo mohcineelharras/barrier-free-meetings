@@ -18,6 +18,8 @@ Open-source, self-hostable, multi-provider. Built to make meetings accessible
 across languages — no data leaves your machine unless you choose a cloud
 provider.
 
+[Try the live demo on 🤗 Hugging Face Spaces →](https://huggingface.co/spaces/mohcineelharras/barrier-free-meetings)
+
 [Features](#features) · [Quick start](#quick-start) · [Docker](#docker) · [Providers](#translation-providers) · [Architecture](#architecture) · [Contributing](CONTRIBUTING.md) · [License](LICENSE)
 
 </div>
@@ -252,9 +254,11 @@ expect a hosted backend reachable via `VITE_API_BASE_URL` and
 
 ## Hugging Face Spaces
 
+**Live demo:** <https://huggingface.co/spaces/mohcineelharras/barrier-free-meetings>
+
 The root [`Dockerfile`](Dockerfile) is preconfigured for Hugging Face
 Spaces (port `7860`, hosted-demo profile, no local Ollama or auto-setup).
-To deploy:
+The live demo is already deployed and running. To deploy your own:
 
 1. Create a new Hugging Face **Docker Space**.
 2. Push this repository.

@@ -21,6 +21,8 @@ ready to copy-paste into LinkedIn. Replace placeholders in `[]` before posting.
 > Hugging Face Spaces, or in a one-line `docker compose up` for
 > self-hosted installs.
 >
+> 🤗 Try the live demo: https://huggingface.co/spaces/mohcineelharras/barrier-free-meetings
+>
 > MIT licensed. Repo + quick start in the first comment 👇
 
 ---
@@ -43,6 +45,9 @@ ready to copy-paste into LinkedIn. Replace placeholders in `[]` before posting.
 > • **Cross-platform** — same code, web / Electron / Capacitor mobile
 >   / Hugging Face Spaces.
 >
+> Try it without installing anything:
+> 🤗 https://huggingface.co/spaces/mohcineelharras/barrier-free-meetings
+>
 > It's MIT-licensed, ~2k LoC of TypeScript on the backend plus a
 > React + Tailwind frontend, and it has been my single biggest
 > forcing function for learning AI engineering end-to-end:
@@ -62,6 +67,9 @@ ready to copy-paste into LinkedIn. Replace placeholders in `[]` before posting.
 
 > Open-sourced today: **Barrier-Free Meetings** — a real-time offline
 > speech transcription + translation app, MIT-licensed.
+>
+> Live demo running on HF Spaces:
+> 🤗 https://huggingface.co/spaces/mohcineelharras/barrier-free-meetings
 >
 > What I learned building it that might be useful:
 >
@@ -92,10 +100,12 @@ ready to copy-paste into LinkedIn. Replace placeholders in `[]` before posting.
 
 ## Suggested first comment on the LinkedIn post
 
-> Repo + quick start:
+> Repo + live demo:
 >
-> https://github.com/mohcineelharras/barrier-free-meetings
+> 🤗 Try it: https://huggingface.co/spaces/mohcineelharras/barrier-free-meetings
+> 💻 Source: https://github.com/mohcineelharras/barrier-free-meetings
 >
+> One-line self-host:
 > ```bash
 > git clone https://github.com/mohcineelharras/barrier-free-meetings.git
 > cd barrier-free-meetings
