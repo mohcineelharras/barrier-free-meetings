@@ -1,0 +1,12 @@
+node_modules
+dist
+dist-landing
+.git
+.DS_Store
+release
+android
+ios
+*.log
+.env
+.env.local
+.env.*

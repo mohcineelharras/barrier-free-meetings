@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 160 160" role="img" aria-labelledby="title desc">
+  <title id="title">SpeechBridge logo mark</title>
+  <desc id="desc">Abstract bridge symbol for SpeechBridge.</desc>
+  <path d="M44 112V60" stroke="#111418" stroke-width="16" stroke-linecap="round"/>
+  <path d="M116 112V60" stroke="#111418" stroke-width="16" stroke-linecap="round"/>
+  <path d="M44 74C56 46 69 30 80 30C91 30 104 46 116 74" fill="none" stroke="#C46A38" stroke-width="16" stroke-linecap="round"/>
+  <path d="M80 54V112" stroke="#C46A38" stroke-width="12" stroke-linecap="round"/>
+</svg>

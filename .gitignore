@@ -1,0 +1,20 @@
+node_modules/
+build/
+dist/
+dist-landing/
+coverage/
+.worktrees/
+.DS_Store
+*.log
+.env*
+!.env.example
+package-lock.json
+__pycache__/
+tools/
+
+# Local AI-tooling artifacts (not part of the public project)
+.claude/
+.codex/
+.playwright-mcp/
+.superpowers/
+.opencode/

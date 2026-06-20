@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">SpeechBridge app icon</title>
+  <desc id="desc">SpeechBridge app icon with bridge mark.</desc>
+  <rect width="1024" height="1024" rx="236" fill="#111418"/>
+  <rect x="52" y="52" width="920" height="920" rx="206" fill="none" stroke="#2C3138" stroke-width="10"/>
+  <path d="M304 700V424" stroke="#F3EEE7" stroke-width="84" stroke-linecap="round"/>
+  <path d="M720 700V424" stroke="#F3EEE7" stroke-width="84" stroke-linecap="round"/>
+  <path d="M304 504C374 338 448 246 512 246C576 246 650 338 720 504" fill="none" stroke="#F3EEE7" stroke-width="84" stroke-linecap="round"/>
+  <path d="M512 388V700" stroke="#C46A38" stroke-width="64" stroke-linecap="round"/>
+</svg>

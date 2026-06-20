@@ -1,0 +1,315 @@
+name: Test Windows Local Setup
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-setup-bat:
+    runs-on: windows-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run setup-local.bat
+        shell: cmd
+        run: |
+          echo === Running setup-local.bat ===
+          call setup-local.bat < nul
+
+      - name: Show setup logs on failure
+        if: failure()
+        shell: cmd
+        run: |
+          echo === npm install log ===
+          if exist "tools\logs\npm-install.log" type "tools\logs\npm-install.log"
+          echo === vite build log ===
+          if exist "tools\logs\vite-build.log" type "tools\logs\vite-build.log"
+          echo === whisper download log ===
+          if exist "tools\logs\whisper-download.log" type "tools\logs\whisper-download.log"
+          echo === ollama serve log ===
+          if exist "tools\ollama\serve.log" type "tools\ollama\serve.log"
+
+      - name: Verify Node.js installed
+        shell: cmd
+        run: |
+          set "NODE_DIR=%CD%\tools\node\node-v22.15.0-win-x64"
+          if not exist "%NODE_DIR%\node.exe" (
+            echo FAIL: node.exe not found
+            exit /b 1
+          )
+          "%NODE_DIR%\node.exe" --version
+
+      - name: Verify node_modules
+        shell: cmd
+        run: |
+          if not exist "node_modules" (
+            echo FAIL: node_modules missing
+            exit /b 1
+          )
+          echo OK: node_modules exists
+
+      - name: Verify frontend build
+        shell: cmd
+        run: |
+          if not exist "dist\index.html" (
+            echo FAIL: dist/index.html missing
+            exit /b 1
+          )
+          echo OK: dist/index.html exists
+
+      - name: Verify Whisper tiny model downloaded
+        shell: cmd
+        run: |
+          set "WHISPER_ONNX=%USERPROFILE%\.transcribe-easy\transformers-cache\onnx-community\whisper-tiny_timestamped\onnx"
+          if not exist "%WHISPER_ONNX%\encoder_model.onnx" (
+            echo FAIL: whisper encoder_model.onnx not found
+            exit /b 1
+          )
+          if not exist "%WHISPER_ONNX%\decoder_model_merged.onnx" (
+            echo FAIL: whisper decoder_model_merged.onnx not found
+            exit /b 1
+          )
+          echo OK: Whisper tiny model cached
+          dir "%WHISPER_ONNX%\*.onnx"
+
+      - name: Verify Ollama installed
+        shell: cmd
+        run: |
+          if not exist "tools\ollama\ollama.exe" (
+            echo FAIL: ollama.exe not found
+            exit /b 1
+          )
+          "tools\ollama\ollama.exe" --version
+
+      - name: Verify model was pulled
+        shell: cmd
+        run: |
+          set "OLLAMA_DIR=%CD%\tools\ollama"
+          set "OLLAMA_EXE=%OLLAMA_DIR%\ollama.exe"
+          set "OLLAMA_MODELS=%OLLAMA_DIR%\models"
+
+          echo Starting Ollama to check models...
+          set "OLLAMA_HOST=127.0.0.1:11434"
+          start "" /b cmd /c ""%OLLAMA_EXE%" serve > "%OLLAMA_DIR%\serve.log" 2>&1"
+
+          powershell -NoProfile -Command ^
+            "$sw = [System.Diagnostics.Stopwatch]::StartNew(); " ^
+            "while ($sw.Elapsed.TotalSeconds -lt 60) { " ^
+            "  try { " ^
+            "    $r = Invoke-WebRequest -Uri 'http://127.0.0.1:11434/api/tags' -UseBasicParsing -TimeoutSec 3; " ^
+            "    if ($r.StatusCode -eq 200) { " ^
+            "      $body = $r.Content; " ^
+            "      if ($body -match 'qwen3.5:0.8b') { " ^
+            "        Write-Host 'OK: Model qwen3.5:0.8b is available'; " ^
+            "        Write-Host $body; " ^
+            "        exit 0 " ^
+            "      } else { " ^
+            "        Write-Host 'FAIL: Ollama running but model not found'; " ^
+            "        Write-Host $body; " ^
+            "        exit 1 " ^
+            "      } " ^
+            "    } " ^
+            "  } catch {} " ^
+            "  Start-Sleep -Seconds 2 " ^
+            "} " ^
+            "Write-Host 'FAIL: Ollama did not respond'; exit 1"
+
+          if errorlevel 1 (
+            echo === Ollama Log ===
+            if exist "%OLLAMA_DIR%\serve.log" type "%OLLAMA_DIR%\serve.log"
+            taskkill /f /im ollama.exe >nul 2>&1
+            exit /b 1
+          )
+          taskkill /f /im ollama.exe >nul 2>&1
+
+      - name: "Functional E2E tests"
+        shell: cmd
+        timeout-minutes: 5
+        run: |
+          set "OLLAMA_DIR=%CD%\tools\ollama"
+          set "OLLAMA_EXE=%OLLAMA_DIR%\ollama.exe"
+          set "OLLAMA_MODELS=%OLLAMA_DIR%\models"
+          set "NODE_DIR=%CD%\tools\node\node-v22.15.0-win-x64"
+          set "PATH=%NODE_DIR%;%PATH%"
+          set "NODE_ENV=production"
+          set "HOST=127.0.0.1"
+          set "DISABLE_AUTO_SETUP=true"
+          set "OLLAMA_HOST=127.0.0.1:11434"
+
+          echo === Starting Ollama ===
+          start "" /b cmd /c ""%OLLAMA_EXE%" serve > "%OLLAMA_DIR%\serve.log" 2>&1"
+          powershell -NoProfile -Command "Start-Sleep -Seconds 5"
+
+          echo === Starting server ===
+          start /b "" "%NODE_DIR%\npx.cmd" tsx server.ts > server.log 2>&1
+
+          echo === Waiting for server ===
+          powershell -NoProfile -Command ^
+            "$sw = [System.Diagnostics.Stopwatch]::StartNew(); " ^
+            "while ($sw.Elapsed.TotalSeconds -lt 45) { " ^
+            "  try { $r = Invoke-WebRequest -Uri 'http://127.0.0.1:3000' -UseBasicParsing -TimeoutSec 3; " ^
+            "    if ($r.StatusCode -eq 200) { Write-Host 'OK: Server responded 200'; exit 0 } " ^
+            "  } catch {} " ^
+            "  Start-Sleep -Seconds 2 " ^
+            "} " ^
+            "Write-Host 'FAIL: Server timeout'; exit 1"
+
+          if errorlevel 1 (
+            echo === Server Log ===
+            type server.log
+            goto :cleanup
+          )
+
+          echo.
+          echo === Test 1: Translation (French to English via Ollama) ===
+          powershell -NoProfile -Command ^
+            "$body = @{ " ^
+            "  text = 'Bonjour le monde'; " ^
+            "  provider = 'ollama'; " ^
+            "  model = 'qwen3.5:0.8b'; " ^
+            "  sourceLang = 'French'; " ^
+            "  targetLang = 'English' " ^
+            "} | ConvertTo-Json; " ^
+            "$r = Invoke-WebRequest -Uri 'http://127.0.0.1:3000/api/translate' " ^
+            "  -Method POST -ContentType 'application/json' -Body $body " ^
+            "  -UseBasicParsing -TimeoutSec 120; " ^
+            "if ($r.StatusCode -ne 200) { " ^
+            "  Write-Host ('FAIL: HTTP ' + $r.StatusCode); " ^
+            "  Write-Host $r.Content; exit 1 " ^
+            "} " ^
+            "$json = $r.Content | ConvertFrom-Json; " ^
+            "if (-not $json.translation) { " ^
+            "  Write-Host 'FAIL: No translation in response'; " ^
+            "  Write-Host $r.Content; exit 1 " ^
+            "} " ^
+            "Write-Host ('OK: Translation = ' + $json.translation); exit 0"
+
+          if errorlevel 1 (
+            echo FAIL: Translation test failed
+            echo === Server Log ===
+            type server.log
+            goto :cleanup
+          )
+          echo PASS
+
+          echo.
+          echo === Test 2: Ollama status via server ===
+          powershell -NoProfile -Command ^
+            "$r = Invoke-WebRequest -Uri 'http://127.0.0.1:3000/api/ollama/status' " ^
+            "  -UseBasicParsing -TimeoutSec 5; " ^
+            "$json = $r.Content | ConvertFrom-Json; " ^
+            "if ($json.running -eq $true) { " ^
+            "  Write-Host 'OK: Ollama running'; exit 0 " ^
+            "} else { " ^
+            "  Write-Host ('FAIL: ' + $r.Content); exit 1 " ^
+            "}"
+
+          if errorlevel 1 (
+            echo FAIL: Ollama status test failed
+            goto :cleanup
+          )
+          echo PASS
+
+          echo.
+          echo === Test 3: Whisper model status ===
+          powershell -NoProfile -Command ^
+            "$r = Invoke-WebRequest -Uri 'http://127.0.0.1:3000/api/whisper/status' " ^
+            "  -UseBasicParsing -TimeoutSec 5; " ^
+            "Write-Host ('Whisper status: ' + $r.Content); " ^
+            "$r2 = Invoke-WebRequest -Uri 'http://127.0.0.1:3000/api/whisper/model' " ^
+            "  -UseBasicParsing -TimeoutSec 5; " ^
+            "Write-Host ('Whisper model: ' + $r2.Content); exit 0"
+
+          if errorlevel 1 (
+            echo FAIL: Whisper status test failed
+            goto :cleanup
+          )
+          echo PASS
+
+          echo.
+          echo === Test 4: Model listing from Ollama ===
+          powershell -NoProfile -Command ^
+            "$r = Invoke-WebRequest -Uri 'http://127.0.0.1:3000/api/models?provider=ollama' " ^
+            "  -UseBasicParsing -TimeoutSec 10; " ^
+            "if ($r.StatusCode -ne 200) { " ^
+            "  Write-Host ('FAIL: HTTP ' + $r.StatusCode); exit 1 " ^
+            "} " ^
+            "Write-Host ('Models: ' + $r.Content); " ^
+            "if ($r.Content -match 'qwen3.5') { " ^
+            "  Write-Host 'OK: qwen3.5 listed'; exit 0 " ^
+            "} else { " ^
+            "  Write-Host 'FAIL: qwen3.5 not found'; exit 1 " ^
+            "}"
+
+          if errorlevel 1 (
+            echo FAIL: Model listing test failed
+            goto :cleanup
+          )
+          echo PASS
+
+          echo.
+          echo === All functional tests passed ===
+          taskkill /f /im ollama.exe >nul 2>&1
+          taskkill /f /im node.exe >nul 2>&1
+          exit /b 0
+
+          :cleanup
+          taskkill /f /im ollama.exe >nul 2>&1
+          taskkill /f /im node.exe >nul 2>&1
+          exit /b 1
+
+      - name: "E2E: launch via start-local.bat"
+        shell: cmd
+        timeout-minutes: 6
+        run: |
+          echo === Launching start-local.bat in the background ===
+          echo (it should start Ollama, then the server, then open a browser)
+          start "" /b cmd /c "call start-local.bat > start-local.log 2>&1"
+
+          echo === Waiting for server on 127.0.0.1:3000 ===
+          powershell -NoProfile -Command ^
+            "$s = [System.Diagnostics.Stopwatch]::StartNew(); " ^
+            "while ($s.Elapsed.TotalSeconds -lt 90) { " ^
+            "  try { if ((Invoke-WebRequest 'http://127.0.0.1:3000' -UseBasicParsing -TimeoutSec 3).StatusCode -eq 200) { Write-Host 'OK: Server up via start-local.bat'; exit 0 } } catch {} " ^
+            "  Start-Sleep -Seconds 2 " ^
+            "} " ^
+            "Write-Host 'FAIL: Server did not start'; exit 1"
+
+          if errorlevel 1 (
+            echo === start-local.bat log ===
+            if exist "start-local.log" type "start-local.log"
+            echo === Ollama log ===
+            if exist "tools\ollama\serve.log" type "tools\ollama\serve.log"
+            goto :cleanup
+          )
+
+          echo.
+          echo === Translation through the start-local.bat-launched stack ===
+          powershell -NoProfile -Command ^
+            "$body = @{ text = 'Bonjour le monde'; provider = 'ollama'; model = 'qwen3.5:0.8b'; sourceLang = 'French'; targetLang = 'English' } | ConvertTo-Json; " ^
+            "$r = Invoke-WebRequest -Uri 'http://127.0.0.1:3000/api/translate' -Method POST -ContentType 'application/json' -Body $body -UseBasicParsing -TimeoutSec 120; " ^
+            "$json = $r.Content | ConvertFrom-Json; " ^
+            "if (-not $json.translation) { Write-Host 'FAIL: No translation'; Write-Host $r.Content; exit 1 } " ^
+            "Write-Host ('OK: Translation = ' + $json.translation); exit 0"
+
+          if errorlevel 1 (
+            echo FAIL: Translation via start-local.bat failed
+            if exist "start-local.log" type "start-local.log"
+            goto :cleanup
+          )
+          echo PASS
+
+          echo.
+          echo === start-local.bat E2E passed ===
+          taskkill /f /im node.exe >nul 2>&1
+          taskkill /f /im ollama.exe >nul 2>&1
+          taskkill /f /im msedge.exe >nul 2>&1
+          exit /b 0
+
+          :cleanup
+          taskkill /f /im node.exe >nul 2>&1
+          taskkill /f /im ollama.exe >nul 2>&1
+          taskkill /f /im msedge.exe >nul 2>&1
+          exit /b 1
