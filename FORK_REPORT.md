@@ -4,7 +4,7 @@
 **Source:** local working copy (path redacted from public copy)
 **Target:** `~/opensource-staging/transcribe-easy`
 **License:** MIT
-**GitHub:** https://github.com/mohcineelharras/transcribe-easy
+**GitHub:** https://github.com/mohcineelharras/barrier-free-meetings
 
 ## What was copied
 
@@ -85,7 +85,7 @@ original:
 
 1. The author attribution in `package.json` is `Mohcine El Harras`.
    The license file uses the same name and the year 2026.
-2. The repo URL is `mohcineelharras/transcribe-easy`. Update if you
+2. The repo URL is `mohcineelharras/barrier-free-meetings`. Update if you
    want a different name.
 3. The `extraResources` change is the critical fix — verify it before
    cutting any Electron release.

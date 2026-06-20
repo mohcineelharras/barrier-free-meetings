@@ -1,6 +1,6 @@
 ---
 name: Feature request
-about: Suggest an idea for transcribe-easy
+about: Suggest an idea for barrier-free-meetings
 title: "[Feature] "
 labels: enhancement
 assignees: ''

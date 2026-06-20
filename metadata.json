@@ -1,5 +1,5 @@
 {
-  "name": "transcribe-easy",
+  "name": "barrier-free-meetings",
   "description": "Barrier-Free Meetings — Real-time offline speech transcription and translation.",
   "requestFramePermissions": [
     "microphone"

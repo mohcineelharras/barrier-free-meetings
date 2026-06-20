@@ -1,3 +1,13 @@
+---
+title: Barrier-Free Meetings Demo
+emoji: 🎙️
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 <div align="center">
 
 # Barrier-Free Meetings
@@ -8,7 +18,7 @@ Open-source, self-hostable, multi-provider. Built to make meetings accessible
 across languages — no data leaves your machine unless you choose a cloud
 provider.
 
-[Features](#features) · [Quick start](#quick-start) · [Providers](#translation-providers) · [Architecture](#architecture) · [Contributing](CONTRIBUTING.md) · [License](LICENSE)
+[Features](#features) · [Quick start](#quick-start) · [Docker](#docker) · [Providers](#translation-providers) · [Architecture](#architecture) · [Contributing](CONTRIBUTING.md) · [License](LICENSE)
 
 </div>
 
@@ -58,8 +68,8 @@ project does the opposite:
 ### One-command bootstrap
 
 ```bash
-git clone https://github.com/mohcineelharras/transcribe-easy.git
-cd transcribe-easy
+git clone https://github.com/mohcineelharras/barrier-free-meetings.git
+cd barrier-free-meetings
 ./setup.sh
 npm run dev
 ```
@@ -82,6 +92,46 @@ npm run dev
 ```bash
 npm run lint   # tsc --noEmit
 npm test       # node --test (uses an explicit file list, not a glob)
+```
+
+## Docker
+
+A self-contained image is provided for personal use. The model cache and
+session data are persisted in named volumes, so a container rebuild does
+not re-download anything.
+
+```bash
+git clone https://github.com/mohcineelharras/barrier-free-meetings.git
+cd barrier-free-meetings
+cp .env.docker.example .env
+# edit .env and add the API keys you want
+docker compose up -d
+```
+
+Open <http://localhost:3000>. The first boot takes a minute or two while
+the chosen Whisper model downloads.
+
+### What the image does
+
+- **Port 3000** (configurable via `BFM_PORT`).
+- **`Dockerfile.local`** — production build with native-module toolchain
+  baked in for onnxruntime-node. Persists `/app/tools` (model cache) and
+  `/app/.cache`.
+- **Healthcheck** on `/api/health` — `docker compose ps` will show
+  `healthy` once the server is ready.
+- **API keys** are read from the `.env` file in the project root.
+  Anything you set there is exposed to the container automatically.
+- **Local Ollama** is reachable from the container via
+  `http://host.docker.internal:11434` on Docker Desktop, or via the host
+  gateway on Linux. Set `OLLAMA_HOST` in `.env`.
+
+### Stop / restart / rebuild
+
+```bash
+docker compose down          # stop and remove the container (keeps volumes)
+docker compose restart       # restart without rebuilding
+docker compose up -d --build # rebuild the image after a code update
+docker compose down -v       # also delete the persisted model cache
 ```
 
 ## Translation providers
@@ -126,7 +176,7 @@ Fullstack TypeScript in a single package — React frontend + Express
 backend share the same `package.json` and `tsconfig.json`.
 
 ```
-transcribe-easy/
+barrier-free-meetings/
 ├── server.ts              # Express + WebSocket entry point
 ├── server/                # Backend modules
 │   ├── translate.ts       # OpenRouter orchestration + fallback chain
@@ -202,14 +252,22 @@ expect a hosted backend reachable via `VITE_API_BASE_URL` and
 
 ## Hugging Face Spaces
 
-A Dockerfile is included. To deploy:
+The root [`Dockerfile`](Dockerfile) is preconfigured for Hugging Face
+Spaces (port `7860`, hosted-demo profile, no local Ollama or auto-setup).
+To deploy:
 
 1. Create a new Hugging Face **Docker Space**.
 2. Push this repository.
-3. Add at least one secret (`OPENROUTER_API_KEY` and/or
-   `GOOGLE_AI_STUDIO_API_KEY`).
+3. Add at least one secret in the Space settings
+   (`OPENROUTER_API_KEY` and/or `GOOGLE_AI_STUDIO_API_KEY`).
 4. The Space will boot in hosted-demo mode: browser STT first, Whisper
    `tiny` fallback, OpenRouter / Google AI for translation and reports.
+
+The README's YAML frontmatter and the [`metadata.json`](metadata.json)
+are read by HF Spaces for the Space's name, description, and SDK
+settings. For personal Docker installs, use
+[`Dockerfile.local`](Dockerfile.local) + [`docker-compose.yml`](docker-compose.yml)
+instead.
 
 See [`docs/huggingface-spaces.md`](docs/huggingface-spaces.md) for the
 exact settings and tradeoffs.

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# transcribe-easy — one-command bootstrap for macOS and Linux.
+# barrier-free-meetings — one-command bootstrap for macOS and Linux.
 #
 # Usage:
 #   ./setup.sh            # install deps + write a .env from .env.example
@@ -74,7 +74,7 @@ install_deps
 
 cat <<'EOF'
 
-[setup] transcribe-easy is ready.
+[setup] barrier-free-meetings is ready.
 
   Next steps:
     1. Edit .env and add API keys for the providers you want to use.

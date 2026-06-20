@@ -1,4 +1,4 @@
-# Contributing to transcribe-easy
+# Contributing to Barrier-Free Meetings
 
 Thanks for your interest in making meetings accessible to more people. This
 project welcomes bug reports, feature ideas, documentation fixes, and pull

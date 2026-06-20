@@ -52,14 +52,14 @@ test('buildCorsHeaders only returns headers for allowed origins', () => {
 
 test('buildCorsHeaders allows the current Hugging Face Space origin in hosted mode', () => {
   assert.deepEqual(
-    buildCorsHeaders('https://demo-user-transcribe-easy.hf.space', {
+    buildCorsHeaders('https://demo-user-barrier-free-meetings.hf.space', {
       HF_SPACES: 'true',
-      SPACE_HOST: 'demo-user-transcribe-easy.hf.space',
+      SPACE_HOST: 'demo-user-barrier-free-meetings.hf.space',
     }),
     {
       'Access-Control-Allow-Headers': 'Content-Type',
       'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
-      'Access-Control-Allow-Origin': 'https://demo-user-transcribe-easy.hf.space',
+      'Access-Control-Allow-Origin': 'https://demo-user-barrier-free-meetings.hf.space',
       Vary: 'Origin',
     },
   );

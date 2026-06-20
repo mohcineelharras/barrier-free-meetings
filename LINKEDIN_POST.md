@@ -7,9 +7,9 @@ ready to copy-paste into LinkedIn. Replace placeholders in `[]` before posting.
 
 ## Draft 1 — Short (recommended for maximum reach)
 
-> Today I'm open-sourcing **transcribe-easy** — a real-time, offline-first
-> meeting app that does live speech-to-text and translation across 50+
-> language pairs.
+> Today I'm open-sourcing **Barrier-Free Meetings** — a real-time,
+> offline-first meeting app that does live speech-to-text and
+> translation across 50+ language pairs.
 >
 > Why it matters: most "AI meeting" tools stream your audio to a third
 > party. This one runs Whisper locally by default and lets you choose
@@ -17,8 +17,9 @@ ready to copy-paste into LinkedIn. Replace placeholders in `[]` before posting.
 > MiniMax). No vendor lock-in, no required cloud.
 >
 > Stack: React + Express + WebSocket in a single TypeScript package.
-> Runs as a web app, Electron desktop, Android/iOS via Capacitor, or
-> on Hugging Face Spaces.
+> Runs as a web app, Electron desktop, Android/iOS via Capacitor, on
+> Hugging Face Spaces, or in a one-line `docker compose up` for
+> self-hosted installs.
 >
 > MIT licensed. Repo + quick start in the first comment 👇
 
@@ -27,7 +28,7 @@ ready to copy-paste into LinkedIn. Replace placeholders in `[]` before posting.
 ## Draft 2 — Medium (story-led)
 
 > I've spent the last few months building something I wish existed:
-> **transcribe-easy** — a barrier-free meeting tool that respects your
+> **Barrier-Free Meetings** — a meeting tool that respects your
 > privacy.
 >
 > The premise is simple: in a world where most teams are now
@@ -37,9 +38,8 @@ ready to copy-paste into LinkedIn. Replace placeholders in `[]` before posting.
 > • **Local-first** — Whisper runs in your browser or on your machine.
 > • **Provider-agnostic** — translate with OpenRouter, Google AI
 >   Studio, Ollama, or MiniMax. Mix and match.
-> • **Self-hostable** — one `npm run dev` and you have a full
->   fullstack app: React frontend, Express + WebSocket backend, no
->   database.
+> • **Self-hostable** — `docker compose up` and you have a full
+>   fullstack app running, or `npm run dev` for the source-build path.
 > • **Cross-platform** — same code, web / Electron / Capacitor mobile
 >   / Hugging Face Spaces.
 >
@@ -53,15 +53,15 @@ ready to copy-paste into LinkedIn. Replace placeholders in `[]` before posting.
 > language without shipping your audio to Silicon Valley, give it a
 > try.
 >
-> Repo: https://github.com/mohcineelharras/transcribe-easy
-> Quick start: `git clone … && ./setup.sh && npm run dev`
+> Repo: https://github.com/mohcineelharras/barrier-free-meetings
+> Quick start: `git clone … && docker compose up -d`
 
 ---
 
 ## Draft 3 — Technical (for AI / dev audiences)
 
-> Open-sourced today: **transcribe-easy** — a real-time offline speech
-> transcription + translation app, MIT-licensed.
+> Open-sourced today: **Barrier-Free Meetings** — a real-time offline
+> speech transcription + translation app, MIT-licensed.
 >
 > What I learned building it that might be useful:
 >
@@ -78,11 +78,15 @@ ready to copy-paste into LinkedIn. Replace placeholders in `[]` before posting.
 >    don't want to drag in Jest/Vitest.
 > 5. **Capacitor** can reuse a Vite-built web app as the native
 >    shell if you keep `server.ts` out of the bundle.
+> 6. **A multi-stage Dockerfile per deployment target** keeps each
+>    profile lean: one for Hugging Face Spaces (port 7860, hosted
+>    demo), one for personal Docker (port 3000, full features,
+>    persisted model cache).
 >
 > Stack: React 19, Vite 6, Express 4, WebSocket (ws), HuggingFace
 > Transformers 4 (Whisper), TypeScript end-to-end.
 >
-> Repo: https://github.com/mohcineelharras/transcribe-easy
+> Repo: https://github.com/mohcineelharras/barrier-free-meetings
 
 ---
 
@@ -90,13 +94,12 @@ ready to copy-paste into LinkedIn. Replace placeholders in `[]` before posting.
 
 > Repo + quick start:
 >
-> https://github.com/mohcineelharras/transcribe-easy
+> https://github.com/mohcineelharras/barrier-free-meetings
 >
 > ```bash
-> git clone https://github.com/mohcineelharras/transcribe-easy.git
-> cd transcribe-easy
-> ./setup.sh
-> npm run dev
+> git clone https://github.com/mohcineelharras/barrier-free-meetings.git
+> cd barrier-free-meetings
+> docker compose up -d
 > ```
 >
 > Open http://localhost:3000, allow microphone, and start talking.

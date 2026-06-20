@@ -1,0 +1,46 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.local
+    image: barrier-free-meetings:latest
+    container_name: barrier-free-meetings
+    restart: unless-stopped
+    ports:
+      - "${BFM_PORT:-3000}:3000"
+    environment:
+      # --- Server ---
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 3000
+      # --- Speech ---
+      DEFAULT_WHISPER_MODEL: ${BFM_WHISPER_MODEL:-tiny}
+      DISABLE_AUTO_SETUP: ${BFM_DISABLE_AUTO_SETUP:-false}
+      MAX_ACTIVE_TRANSCRIPTIONS: ${BFM_MAX_ACTIVE_TRANSCRIPTIONS:-2}
+      MAX_QUEUE_SIZE: ${BFM_MAX_QUEUE_SIZE:-4}
+      MAX_WS_CONNECTIONS: ${BFM_MAX_WS_CONNECTIONS:-4}
+      # --- Translation providers (uncomment / fill what you want) ---
+      # OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
+      # GOOGLE_AI_STUDIO_API_KEY: ${GOOGLE_AI_STUDIO_API_KEY}
+      # MINIMAX_API_KEY: ${MINIMAX_API_KEY}
+      # OLLAMA_HOST: http://host.docker.internal:11434
+      # --- CORS / mobile shells ---
+      CORS_ALLOWED_ORIGINS: ${BFM_CORS_ALLOWED_ORIGINS:-http://localhost:3000,capacitor://localhost}
+    env_file:
+      - .env
+    volumes:
+      # Persist downloaded Whisper models across container rebuilds.
+      - bfm-tools:/app/tools
+      # Persist session history written by the app (browser-side localStorage
+      # is the primary store, but server-side caches can use this).
+      - bfm-cache:/app/.cache
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:3000/api/health', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 60s
+      retries: 3
+
+volumes:
+  bfm-tools:
+  bfm-cache:

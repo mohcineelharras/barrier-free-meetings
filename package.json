@@ -1,11 +1,11 @@
 {
-  "name": "transcribe-easy",
+  "name": "barrier-free-meetings",
   "version": "1.0.0",
   "description": "Barrier-Free Meetings — Real-time offline speech transcription and translation",
   "author": "Mohcine El Harras",
   "license": "MIT",
-  "homepage": "https://github.com/mohcineelharras/transcribe-easy",
-  "bugs": "https://github.com/mohcineelharras/transcribe-easy/issues",
+  "homepage": "https://github.com/mohcineelharras/barrier-free-meetings",
+  "bugs": "https://github.com/mohcineelharras/barrier-free-meetings/issues",
   "type": "module",
   "main": "electron/main.cjs",
   "scripts": {
@@ -31,7 +31,7 @@
     "electron:pack:mac": "npm run build && electron-builder --mac"
   },
   "build": {
-    "appId": "com.transcribe-easy.app",
+    "appId": "com.barrier-free-meetings.app",
     "productName": "Barrier-Free Meetings",
     "directories": {
       "output": "release"
