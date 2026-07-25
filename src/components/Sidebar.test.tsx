@@ -9,7 +9,7 @@ test('hosted demo sidebar keeps advanced transcription controls under one collap
     <Sidebar
       selectedProvider="openrouter"
       onProviderChange={() => {}}
-      selectedModel="nvidia/nemotron-3-nano-30b-a3b:free"
+      selectedModel="inclusionai/ling-3.0-flash:free"
       onModelChange={() => {}}
       sourceLanguage="zh-CN"
       onSourceLanguageChange={() => {}}

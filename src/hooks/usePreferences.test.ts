@@ -27,7 +27,7 @@ const VALID_PREFS: AppPreferences = {
   sourceLanguage: 'zh-CN',
   targetLanguage: 'fr-FR',
   selectedProvider: 'openrouter',
-  selectedModel: 'liquid/lfm-2.5-1.2b-instruct:free',
+  selectedModel: 'inclusionai/ling-3.0-flash:free',
   whisperTier: 'medium',
   ollamaTier: 'medium',
   audioSource: 'microphone',

@@ -48,7 +48,7 @@ These defaults are already baked into the Docker image, but you can override the
 - The sidebar exposes a manual `Browser Speech` / `Whisper tiny` switch for microphone transcription in hosted demo mode.
 - Local setup endpoints are disabled.
 - The demo keeps multilingual Whisper available without trying to bootstrap Ollama.
-- The OpenRouter model dropdown is intentionally limited to a curated low-latency shortlist for live use.
+- The OpenRouter model dropdown lists all free text chat models from OpenRouter, with a fast light default (`inclusionai/ling-3.0-flash:free`) first.
 
 ## Expected Limits
 

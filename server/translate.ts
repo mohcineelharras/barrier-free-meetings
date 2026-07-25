@@ -1,15 +1,24 @@
 export const TRANSLATION_MAX_CHARS = 2_000;
-export const DEFAULT_MODEL = 'liquid/lfm-2.5-1.2b-instruct:free';
+/** Light free MoE (~5.1B active) — default for live translation latency. */
+export const DEFAULT_MODEL = 'inclusionai/ling-3.0-flash:free';
 export const OPENROUTER_TRANSLATION_TIMEOUT_MS = 25_000;
 export const OPENROUTER_MIN_THROUGHPUT_TOKENS_PER_SECOND = 30;
 export const OPENROUTER_MAX_MODELS_PER_REQUEST = 3;
 
+/**
+ * Ordered free-model fallback chain for live translation (fast/light first).
+ * The sidebar dropdown lists every free text model from OpenRouter; this shortlist
+ * is only used for automatic provider failover when the selected free model is busy.
+ */
 export const OPENROUTER_FAST_FREE_TRANSLATION_MODELS = [
+  'inclusionai/ling-3.0-flash:free',
+  'google/gemma-4-26b-a4b-it:free',
+  'nvidia/nemotron-nano-9b-v2:free',
+  'poolside/laguna-xs-2.1:free',
+  'openai/gpt-oss-20b:free',
   'nvidia/nemotron-3-nano-30b-a3b:free',
-  'liquid/lfm-2.5-1.2b-instruct:free',
-  'z-ai/glm-4.5-air:free',
-  'poolside/laguna-m.1:free',
-  'deepseek/deepseek-v4-flash:free',
+  'cohere/north-mini-code:free',
+  'poolside/laguna-s-2.1:free',
 ] as const;
 
 export const OPENROUTER_PAID_FALLBACK_MODEL = 'deepseek/deepseek-v4-flash';

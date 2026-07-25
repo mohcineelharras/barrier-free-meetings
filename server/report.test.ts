@@ -82,7 +82,7 @@ test("buildReportPrompt truncates an overlong transcript before prompting", () =
 test("generateReport still calls the selected OpenRouter model for short transcripts", async () => {
   const originalFetch = globalThis.fetch;
   const originalApiKey = process.env.OPENROUTER_API_KEY;
-  const selectedModel = "liquid/lfm-2.5-1.2b-instruct:free";
+  const selectedModel = "inclusionai/ling-3.0-flash:free";
   const fetchCalls: Array<{ url: string; body: Record<string, unknown> }> = [];
 
   process.env.OPENROUTER_API_KEY = "test-openrouter-key";

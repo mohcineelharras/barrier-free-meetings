@@ -101,11 +101,14 @@ test("buildOpenRouterTranslationRequestBody targets free fast-throughput model r
 
 test("fast free translation models stay ordered by benchmarked live responsiveness", () => {
   assert.deepEqual([...OPENROUTER_FAST_FREE_TRANSLATION_MODELS], [
+    "inclusionai/ling-3.0-flash:free",
+    "google/gemma-4-26b-a4b-it:free",
+    "nvidia/nemotron-nano-9b-v2:free",
+    "poolside/laguna-xs-2.1:free",
+    "openai/gpt-oss-20b:free",
     "nvidia/nemotron-3-nano-30b-a3b:free",
-    "liquid/lfm-2.5-1.2b-instruct:free",
-    "z-ai/glm-4.5-air:free",
-    "poolside/laguna-m.1:free",
-    "deepseek/deepseek-v4-flash:free",
+    "cohere/north-mini-code:free",
+    "poolside/laguna-s-2.1:free",
   ]);
 });
 

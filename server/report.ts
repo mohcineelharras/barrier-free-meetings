@@ -13,7 +13,7 @@ import { callMinimaxReport } from './minimax.js';
 const OPENROUTER_CHAT_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const GOOGLE_AI_BASE = 'https://generativelanguage.googleapis.com/v1beta/openai';
 const OLLAMA_BASE_URL = 'http://localhost:11434';
-const REPORT_MODEL_FALLBACK = 'liquid/lfm-2.5-1.2b-instruct:free';
+const REPORT_MODEL_FALLBACK = 'inclusionai/ling-3.0-flash:free';
 // The client aborts at 35s; keep the upstream timeout safely under that so a slow
 // free model on a long transcript fails with our message rather than the client's.
 const REPORT_OPENROUTER_TIMEOUT_MS = 30_000;

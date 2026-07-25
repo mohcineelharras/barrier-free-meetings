@@ -214,7 +214,7 @@ export function Sidebar({
       ? 'MiniMax is not configured. Set MINIMAX_API_KEY.'
       : provider === 'ollama'
       ? 'No models found.'
-      : 'No live-safe OpenRouter models are available right now.';
+      : 'No free OpenRouter models are available right now.';
   const selectedProviderLabel =
     selectedProvider === 'google-ai-studio' ? 'Gemini'
     : PROVIDERS.find((item) => item.id === selectedProvider)?.name ?? selectedProvider;

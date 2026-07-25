@@ -21,7 +21,7 @@ export const DEFAULT_PROVIDER: ProviderId =
     ? ENV_DEFAULT_PROVIDER
     : 'openrouter';
 
-export const OPENROUTER_DEFAULT_MODEL = 'liquid/lfm-2.5-1.2b-instruct:free';
+export const OPENROUTER_DEFAULT_MODEL = 'inclusionai/ling-3.0-flash:free';
 export const GOOGLE_AI_STUDIO_DEFAULT_MODEL = 'gemma-4-26b-a4b-it';
 export const MINIMAX_DEFAULT_MODEL = 'MiniMax-M2.7';
 export const OLLAMA_DEFAULT_MODEL = 'qwen3.5:0.8b';

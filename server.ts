@@ -82,7 +82,7 @@ async function translateWithFallbackChain(
   targetLang: TranslationLanguage,
 ): Promise<FallbackResult> {
   // Free-only ordered fallback chain (no paid OpenRouter):
-  //   1. OpenRouter — liquid/lfm-2.5-1.2b-instruct:free (or the selected OpenRouter model)
+  //   1. OpenRouter — inclusionai/ling-3.0-flash:free (or the selected OpenRouter model)
   //   2. Gemma 4 26B A4B  (Google AI Studio)
   //   3. Gemma 4 31B IT   (Google AI Studio)
   //   4. MiniMax M2.7
