@@ -4,6 +4,7 @@ dist/
 dist-landing/
 coverage/
 .worktrees/
+.playwright-mcp/
 .DS_Store
 *.log
 .env*
