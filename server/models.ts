@@ -1,4 +1,5 @@
 import { OPENROUTER_FAST_FREE_TRANSLATION_MODELS, OPENROUTER_PAID_FALLBACK_MODEL } from './translate.js';
+import { getModelManifest } from './modelManifest.js';
 export { fetchMinimaxModels } from './minimax.js';
 
 interface OpenRouterModel {
@@ -76,8 +77,6 @@ export async function fetchFreeModels(): Promise<FreeModel[]> {
   ];
 }
 
-const SUPPORTED_OLLAMA_MODELS = ['qwen3.5:0.8b', 'qwen3.5:2b'];
-
 function normalizeOllamaModelName(name: string): string {
   return name.replace(/:latest$/, '');
 }
@@ -90,8 +89,13 @@ export async function fetchOllamaModels(): Promise<FreeModel[]> {
     if (!response.ok) return [];
     const data = (await response.json()) as OllamaTagsResponse;
     const available = new Set(data.models.map((model) => normalizeOllamaModelName(model.name)));
+    const manifest = getModelManifest();
+    const supportedModels = [
+      ...manifest.requiredOllamaModels,
+      ...manifest.optionalOllamaModels,
+    ];
 
-    return SUPPORTED_OLLAMA_MODELS.filter((model) => available.has(model)).map((model) => ({
+    return supportedModels.filter((model) => available.has(model)).map((model) => ({
       id: model,
       name: model,
     }));

@@ -278,7 +278,7 @@ app.post("/api/verify-language", async (req, res) => {
 
 app.get("/api/setup/status", (_req, res) => {
   if (isAutoSetupDisabled) {
-    res.json({ step: "ready", progress: 100, error: null });
+    res.json({ ...getSetupStatus(), step: "ready", progress: 100, error: null });
     return;
   }
   res.json(getSetupStatus());

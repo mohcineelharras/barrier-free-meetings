@@ -51,7 +51,9 @@ export function resolveTranscriptionSupport({
   hasWebSocket,
   isNativeApp,
 }: ResolveTranscriptionSupportOptions): TranscriptionSupport {
+  // Hosted Spaces demos use browser Web Speech only — never backend Whisper STT.
   const supportsRemoteWhisper =
+    !isHostedDemo &&
     hasConfiguredApiBaseUrl &&
     hasWebSocket &&
     hasAudioContext &&
@@ -61,7 +63,7 @@ export function resolveTranscriptionSupport({
   const supportsSystemAudioCapture =
     !isNativeApp &&
     supportsRemoteWhisper &&
-    (isLocalhost || hasDisplayMedia);
+    hasDisplayMedia;
   const supportsWebSpeechRecognition = !isNativeApp && hasSpeechRecognition && supportsMicrophoneCapture;
   const canStartRecording =
     (supportsMicrophoneCapture && (supportsRemoteWhisper || supportsWebSpeechRecognition)) ||
@@ -70,6 +72,9 @@ export function resolveTranscriptionSupport({
   let recordingDisabledReason: string | null = null;
   if (!canStartRecording && !supportsMicrophoneCapture) {
     recordingDisabledReason = 'Microphone capture is not available in this browser or webview.';
+  } else if (!canStartRecording && isHostedDemo && !supportsWebSpeechRecognition) {
+    recordingDisabledReason =
+      'This hosted demo uses browser speech recognition only. Open Chrome or Edge and allow microphone access.';
   } else if (!canStartRecording && !supportsRemoteWhisper && !supportsWebSpeechRecognition) {
     recordingDisabledReason =
       isNativeApp && !hasConfiguredApiBaseUrl
@@ -79,7 +84,11 @@ export function resolveTranscriptionSupport({
 
   return {
     canStartRecording,
-    preferredLiveTranscriptionMode: supportsWebSpeechRecognition ? 'web-speech' : 'whisper',
+    preferredLiveTranscriptionMode: supportsWebSpeechRecognition
+      ? 'web-speech'
+      : supportsRemoteWhisper
+      ? 'whisper'
+      : 'web-speech',
     recordingDisabledReason,
     supportsMicrophoneCapture,
     supportsOfflineMode,
@@ -100,7 +109,7 @@ export function resolveRecordingMode({
   preferredMicrophoneMode?: PreferredMicrophoneMode;
   support: TranscriptionSupport;
 }): 'web-speech' | 'whisper' {
-  if (audioSource === 'system' || isOffline) {
+  if ((audioSource === 'system' || isOffline) && support.supportsRemoteWhisper) {
     return 'whisper';
   }
 

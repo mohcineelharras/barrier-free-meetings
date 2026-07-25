@@ -40,6 +40,21 @@ test('hasAutoReportReadySegments waits for pending translations to settle', () =
   );
 });
 
+test('hasAutoReportReadySegments waits for transcript segments to be final', () => {
+  assert.equal(
+    hasAutoReportReadySegments([
+      {
+        id: 'segment-1',
+        original: 'السلام عليكم',
+        translated: 'Bonjour',
+        timestamp: 1,
+        isFinal: false,
+      },
+    ]),
+    false,
+  );
+});
+
 test('hasAutoReportReadySegments accepts translated segments once they are settled', () => {
   assert.equal(
     hasAutoReportReadySegments([

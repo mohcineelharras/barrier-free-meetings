@@ -3,11 +3,13 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+import { WHISPER_MODEL_IDS } from '../server/modelManifest.js';
+
 const CACHE_DIR = path.join(os.homedir(), '.transcribe-easy', 'transformers-cache');
-const MODEL_ID = 'onnx-community/whisper-tiny_timestamped';
+const MODEL_ID = WHISPER_MODEL_IDS.tiny;
 
 async function main() {
-  const onnxDir = path.join(CACHE_DIR, 'onnx-community', 'whisper-tiny_timestamped', 'onnx');
+  const onnxDir = path.join(CACHE_DIR, 'onnx-community', MODEL_ID.replace(/^onnx-community\//, ''), 'onnx');
   if (
     fs.existsSync(path.join(onnxDir, 'encoder_model.onnx')) &&
     fs.existsSync(path.join(onnxDir, 'decoder_model_merged.onnx'))

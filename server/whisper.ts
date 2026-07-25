@@ -1,6 +1,7 @@
 import {
   createTransformersWhisperRecognizer,
   ensureAllTransformersWhisperModelsDownloaded,
+  ensureTransformersWhisperModelsDownloaded,
   ensureTransformersWhisperReady,
   getTransformersWhisperModelName,
   getTransformersWhisperStatus,
@@ -44,4 +45,16 @@ export async function ensureAllModelsDownloaded(
   onProgress?: (modelIndex: number, total: number, status: WhisperStatus) => void,
 ): Promise<void> {
   await ensureAllTransformersWhisperModelsDownloaded(onProgress);
+}
+
+export async function ensureModelsDownloaded(
+  models: WhisperModelName[],
+  onProgress?: (
+    modelName: WhisperModelName,
+    modelIndex: number,
+    total: number,
+    status: WhisperStatus,
+  ) => void,
+): Promise<void> {
+  await ensureTransformersWhisperModelsDownloaded(models, onProgress);
 }

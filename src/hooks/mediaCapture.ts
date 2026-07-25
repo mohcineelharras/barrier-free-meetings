@@ -7,10 +7,11 @@ interface MediaDevicesLike {
 
 export type SystemAudioCapturePath = 'server-device' | 'browser-display';
 
+/** Always use Chrome tab/window share — never macOS Screen Recording / Swift device capture. */
 export function resolveSystemAudioCapturePath(
-  runtime: Pick<RuntimeConfig, 'isLocalhost'>,
+  _runtime?: Pick<RuntimeConfig, 'isLocalhost'>,
 ): SystemAudioCapturePath {
-  return runtime.isLocalhost ? 'server-device' : 'browser-display';
+  return 'browser-display';
 }
 
 export async function getCaptureStream({

@@ -3,39 +3,44 @@ FROM node:22-bookworm-slim AS builder
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm install --ignore-scripts
+RUN npm ci --ignore-scripts
 
 COPY . .
-
-ARG VITE_HOSTED_DEMO=true
-ENV VITE_HOSTED_DEMO=${VITE_HOSTED_DEMO}
-
 RUN npm run build
 
 FROM node:22-bookworm-slim AS runner
 
 WORKDIR /app
 
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends ca-certificates curl zstd \
+  && rm -rf /var/lib/apt/lists/* \
+  && curl -fsSL https://ollama.com/install.sh | sh
+
 ENV NODE_ENV=production
 ENV HOST=0.0.0.0
-ENV PORT=7860
-ENV HF_SPACES=true
-ENV DISABLE_AUTO_SETUP=true
-ENV DEFAULT_WHISPER_MODEL=tiny
-ENV MAX_ACTIVE_TRANSCRIPTIONS=3
-ENV MAX_QUEUE_SIZE=3
-ENV MAX_WS_CONNECTIONS=6
-ENV VITE_HOSTED_DEMO=true
+ENV PORT=3000
+ENV OLLAMA_HOST=http://127.0.0.1:11434
+ENV TRANSCRIBE_EASY_SETUP_MODE=docker
+ENV DEFAULT_WHISPER_MODEL=base
+ENV REQUIRED_OLLAMA_MODELS=qwen3.5:0.8b
+ENV OPTIONAL_OLLAMA_MODELS=qwen3.5:2b
+ENV REQUIRED_WHISPER_MODELS=tiny,base
 
 COPY package*.json ./
-RUN npm install --ignore-scripts
+RUN npm ci --omit=dev --ignore-scripts
 
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/server ./server
+COPY --from=builder /app/scripts ./scripts
 COPY --from=builder /app/server.ts ./server.ts
 COPY --from=builder /app/tsconfig.json ./tsconfig.json
 
-EXPOSE 7860
+RUN chmod +x ./scripts/docker-entrypoint.sh
 
-CMD ["npm", "run", "preview"]
+VOLUME ["/root/.ollama", "/root/.transcribe-easy"]
+
+EXPOSE 3000
+
+ENTRYPOINT ["./scripts/docker-entrypoint.sh"]

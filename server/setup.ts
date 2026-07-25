@@ -5,6 +5,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { getModelManifest, type ModelManifest, type WhisperModelName } from './modelManifest.js';
+
 export interface SetupStatus {
   step:
     | 'detecting'
@@ -16,25 +18,143 @@ export interface SetupStatus {
     | 'error';
   progress: number;
   error: string | null;
+  mode: SetupMode;
+  requirements: SetupRequirement[];
 }
 
-const OLLAMA_MODELS = ['qwen3.5:0.8b', 'qwen3.5:2b', 'qwen3.5:4b'];
+export type SetupMode = 'desktop' | 'docker' | 'disabled';
+export type RequirementState = 'missing' | 'downloading' | 'verifying' | 'ready' | 'error';
+export type RequirementKind = 'ollama-binary' | 'ollama-server' | 'ollama-model' | 'whisper-model';
+
+export interface SetupRequirement {
+  id: string;
+  label: string;
+  kind: RequirementKind;
+  required: boolean;
+  state: RequirementState;
+  progress: number;
+  message?: string;
+}
+
 const OLLAMA_OBSOLETE_MODELS = ['qwen3:0.5b', 'qwen:0.5b', 'qwen3:0.6b'];
 const OLLAMA_RELEASE_BASE = 'https://github.com/ollama/ollama/releases/latest/download';
 const DOWNLOAD_TIMEOUT_MS = 5 * 60 * 1000;
 
 const PROJECT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
-let currentStatus: SetupStatus = { step: 'detecting', progress: 0, error: null };
+let currentStatus: SetupStatus = createInitialSetupStatus();
 let ollamaProcess: ChildProcess | null = null;
 let setupRunning = false;
 
+export function getSetupMode(env: NodeJS.ProcessEnv = process.env): SetupMode {
+  const explicit = env.TRANSCRIBE_EASY_SETUP_MODE?.trim().toLowerCase();
+  if (explicit === 'docker' || explicit === 'desktop' || explicit === 'disabled') {
+    return explicit;
+  }
+
+  if (
+    env.DISABLE_AUTO_SETUP === '1' ||
+    env.DISABLE_AUTO_SETUP === 'true' ||
+    env.HF_SPACES === '1' ||
+    env.HF_SPACES === 'true'
+  ) {
+    return 'disabled';
+  }
+
+  return 'desktop';
+}
+
+export function getOllamaBaseUrl(env: NodeJS.ProcessEnv = process.env): string {
+  const host = env.OLLAMA_HOST?.trim();
+  if (!host) return 'http://127.0.0.1:11434';
+  return host.startsWith('http') ? host : `http://${host}`;
+}
+
+export function createInitialSetupStatus(
+  manifest: ModelManifest = getModelManifest(),
+  mode: SetupMode = getSetupMode(),
+): SetupStatus {
+  const requirements: SetupRequirement[] = [
+    {
+      id: 'ollama-binary',
+      label: 'Ollama binary',
+      kind: 'ollama-binary',
+      required: true,
+      state: 'missing',
+      progress: 0,
+    },
+    {
+      id: 'ollama-server',
+      label: 'Ollama server',
+      kind: 'ollama-server',
+      required: true,
+      state: 'missing',
+      progress: 0,
+    },
+    ...manifest.requiredOllamaModels.map((model) => ({
+      id: `ollama-model:${model}`,
+      label: `Ollama ${model}`,
+      kind: 'ollama-model' as const,
+      required: true,
+      state: 'missing' as const,
+      progress: 0,
+    })),
+    ...manifest.requiredWhisperModels.map((model) => ({
+      id: `whisper-model:${model}`,
+      label: `Whisper ${model}`,
+      kind: 'whisper-model' as const,
+      required: true,
+      state: 'missing' as const,
+      progress: 0,
+    })),
+    ...manifest.optionalOllamaModels.map((model) => ({
+      id: `ollama-model:${model}`,
+      label: `Ollama ${model}`,
+      kind: 'ollama-model' as const,
+      required: false,
+      state: 'missing' as const,
+      progress: 0,
+    })),
+  ];
+
+  return {
+    step: 'detecting',
+    progress: 0,
+    error: null,
+    mode,
+    requirements,
+  };
+}
+
+export function updateRequirement(
+  status: SetupStatus,
+  id: string,
+  update: Partial<Pick<SetupRequirement, 'message' | 'progress' | 'state'>>,
+): SetupStatus {
+  return {
+    ...status,
+    requirements: status.requirements.map((requirement) =>
+      requirement.id === id ? { ...requirement, ...update } : requirement,
+    ),
+  };
+}
+
 export function getSetupStatus(): SetupStatus {
-  return { ...currentStatus };
+  return {
+    ...currentStatus,
+    requirements: currentStatus.requirements.map((requirement) => ({ ...requirement })),
+  };
 }
 
 function setStatus(update: Partial<SetupStatus>) {
   currentStatus = { ...currentStatus, ...update };
+}
+
+function setRequirement(
+  id: string,
+  update: Partial<Pick<SetupRequirement, 'message' | 'progress' | 'state'>>,
+): void {
+  currentStatus = updateRequirement(currentStatus, id, update);
 }
 
 function getInstallDir(): string {
@@ -197,6 +317,10 @@ function getDownloadUrl(): string {
 }
 
 async function downloadOllamaBinary(): Promise<string> {
+  if (getSetupMode() === 'docker') {
+    throw new Error('Ollama binary is missing from the Docker image. Rebuild the full app image.');
+  }
+
   const installDir = getInstallDir();
   fs.mkdirSync(installDir, { recursive: true });
 
@@ -204,12 +328,16 @@ async function downloadOllamaBinary(): Promise<string> {
   if (fs.existsSync(binaryPath)) return binaryPath;
 
   setStatus({ step: 'downloading-ollama', progress: 0 });
+  setRequirement('ollama-binary', { state: 'downloading', progress: 0 });
   const url = getDownloadUrl();
 
   if (process.platform === 'win32') {
     const zipPath = path.join(installDir, 'ollama-windows.zip');
     try {
-      await downloadFile(url, zipPath, (pct) => setStatus({ progress: pct }));
+      await downloadFile(url, zipPath, (pct) => {
+        setStatus({ progress: pct });
+        setRequirement('ollama-binary', { progress: pct });
+      });
 
       const AdmZip = (await import('adm-zip')).default;
       const zip = new AdmZip(zipPath);
@@ -218,6 +346,7 @@ async function downloadOllamaBinary(): Promise<string> {
       if (!fs.existsSync(binaryPath)) {
         throw new Error('ollama.exe not found after extracting zip');
       }
+      setRequirement('ollama-binary', { state: 'ready', progress: 100 });
       return binaryPath;
     } catch (error) {
       bestEffortRemoveFile(binaryPath, 'Ollama binary');
@@ -229,8 +358,12 @@ async function downloadOllamaBinary(): Promise<string> {
 
   // macOS and Linux: download standalone binary directly
   try {
-    await downloadFile(url, binaryPath, (pct) => setStatus({ progress: pct }));
+    await downloadFile(url, binaryPath, (pct) => {
+      setStatus({ progress: pct });
+      setRequirement('ollama-binary', { progress: pct });
+    });
     fs.chmodSync(binaryPath, 0o755);
+    setRequirement('ollama-binary', { state: 'ready', progress: 100 });
     return binaryPath;
   } catch (error) {
     bestEffortRemoveFile(binaryPath, 'Ollama binary');
@@ -240,7 +373,7 @@ async function downloadOllamaBinary(): Promise<string> {
 
 async function isOllamaServerRunning(): Promise<boolean> {
   try {
-    const res = await fetch('http://localhost:11434/api/tags', {
+    const res = await fetch(`${getOllamaBaseUrl()}/api/tags`, {
       signal: AbortSignal.timeout(2000),
     });
     return res.ok;
@@ -277,28 +410,32 @@ async function waitForOllamaReady(timeoutMs = 60_000): Promise<void> {
   throw new Error('Ollama server did not start within 60 seconds');
 }
 
-async function areModelsAvailable(): Promise<boolean> {
+async function getAvailableOllamaModels(): Promise<Set<string>> {
   try {
-    const res = await fetch('http://localhost:11434/api/tags');
-    if (!res.ok) return false;
+    const res = await fetch(`${getOllamaBaseUrl()}/api/tags`);
+    if (!res.ok) return new Set();
     const data = (await res.json()) as { models: Array<{ name: string }> };
-    const available = new Set(data.models.map((m) => m.name));
-    return OLLAMA_MODELS.every((model) => available.has(model));
+    return new Set(data.models.map((m) => m.name.replace(/:latest$/, '')));
   } catch {
-    return false;
+    return new Set();
   }
+}
+
+async function areModelsAvailable(models: string[]): Promise<boolean> {
+  const available = await getAvailableOllamaModels();
+  return models.every((model) => available.has(model));
 }
 
 async function removeObsoleteModels(): Promise<void> {
   try {
-    const res = await fetch('http://localhost:11434/api/tags');
+    const res = await fetch(`${getOllamaBaseUrl()}/api/tags`);
     if (!res.ok) return;
     const data = (await res.json()) as { models: Array<{ name: string }> };
     const available = new Set(data.models.map((m) => m.name));
     
     for (const model of OLLAMA_OBSOLETE_MODELS) {
       if (available.has(model) || available.has(model + ':latest')) {
-        await fetch('http://localhost:11434/api/delete', {
+        await fetch(`${getOllamaBaseUrl()}/api/delete`, {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name: model }),
@@ -310,11 +447,12 @@ async function removeObsoleteModels(): Promise<void> {
   }
 }
 
-async function pullOllamaModels(): Promise<void> {
-  for (const model of OLLAMA_MODELS) {
+async function pullOllamaModels(models: string[]): Promise<void> {
+  for (const model of models) {
     setStatus({ step: 'pulling-model', progress: 0 });
+    setRequirement(`ollama-model:${model}`, { state: 'downloading', progress: 0 });
     try {
-      const res = await fetch('http://localhost:11434/api/pull', {
+      const res = await fetch(`${getOllamaBaseUrl()}/api/pull`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: model }),
@@ -345,29 +483,45 @@ async function pullOllamaModels(): Promise<void> {
               total?: number;
             };
             if (obj.total && obj.completed) {
-              setStatus({ progress: Math.round((obj.completed / obj.total) * 100) });
+              const progress = Math.round((obj.completed / obj.total) * 100);
+              setStatus({ progress });
+              setRequirement(`ollama-model:${model}`, { progress });
             }
           } catch {
             // Ignore parse errors on partial streams
           }
         }
       }
+      setRequirement(`ollama-model:${model}`, { state: 'ready', progress: 100 });
     } catch (error) {
+      setRequirement(`ollama-model:${model}`, {
+        state: 'error',
+        message: formatErrorMessage(error),
+      });
       throw new Error(`Failed pulling ${model}: ${formatErrorMessage(error)}`);
     }
   }
 }
 
-async function ensureWhisperModel(): Promise<void> {
-  const { ensureAllModelsDownloaded } = await import('./whisper.js');
+async function ensureWhisperModels(models: WhisperModelName[]): Promise<void> {
+  const { ensureModelsDownloaded } = await import('./whisper.js');
   setStatus({ step: 'downloading-whisper', progress: 0 });
 
-  await ensureAllModelsDownloaded((modelIndex, total, status) => {
+  await ensureModelsDownloaded(models, (modelName, modelIndex, total, status) => {
     const base = (modelIndex / total) * 100;
     const slice = (1 / total) * 100;
     const within = (status.progress / 100) * slice;
-    setStatus({ step: 'downloading-whisper', progress: Math.round(base + within) });
+    const progress = Math.round(base + within);
+    setStatus({ step: 'downloading-whisper', progress });
+    setRequirement(`whisper-model:${modelName}`, {
+      state: status.state === 'ready' ? 'ready' : 'downloading',
+      progress: status.state === 'ready' ? 100 : status.progress,
+    });
   });
+
+  for (const model of models) {
+    setRequirement(`whisper-model:${model}`, { state: 'ready', progress: 100 });
+  }
 }
 
 export async function runSetup(onProgress: (status: SetupStatus) => void): Promise<void> {
@@ -375,31 +529,56 @@ export async function runSetup(onProgress: (status: SetupStatus) => void): Promi
   setupRunning = true;
 
   try {
+    const manifest = getModelManifest();
+    const mode = getSetupMode();
+    currentStatus = createInitialSetupStatus(manifest, mode);
     setStatus({ step: 'detecting', progress: 0, error: null });
     onProgress(getSetupStatus());
+
+    if (mode === 'disabled') {
+      setStatus({ step: 'ready', progress: 100 });
+      onProgress(getSetupStatus());
+      return;
+    }
 
     let binaryPath = resolveOllamaBinary();
 
     if (!binaryPath) {
       binaryPath = await downloadOllamaBinary();
     }
+    setRequirement('ollama-binary', { state: 'ready', progress: 100 });
     onProgress(getSetupStatus());
 
     if (!(await isOllamaServerRunning())) {
       setStatus({ step: 'starting-ollama', progress: 0 });
+      setRequirement('ollama-server', { state: 'verifying', progress: 25 });
       onProgress(getSetupStatus());
       startOllamaServer(binaryPath);
       await waitForOllamaReady();
     }
+    setRequirement('ollama-server', { state: 'ready', progress: 100 });
     onProgress(getSetupStatus());
 
-    if (!(await areModelsAvailable())) {
+    const available = await getAvailableOllamaModels();
+    for (const model of manifest.requiredOllamaModels) {
+      if (available.has(model)) {
+        setRequirement(`ollama-model:${model}`, { state: 'ready', progress: 100 });
+      }
+    }
+
+    for (const model of manifest.optionalOllamaModels) {
+      if (available.has(model)) {
+        setRequirement(`ollama-model:${model}`, { state: 'ready', progress: 100 });
+      }
+    }
+
+    if (!(await areModelsAvailable(manifest.requiredOllamaModels))) {
       await removeObsoleteModels();
-      await pullOllamaModels();
+      await pullOllamaModels(manifest.requiredOllamaModels);
     }
     onProgress(getSetupStatus());
 
-    await ensureWhisperModel();
+    await ensureWhisperModels(manifest.requiredWhisperModels);
     setStatus({ step: 'ready', progress: 100 });
     onProgress(getSetupStatus());
   } catch (err) {

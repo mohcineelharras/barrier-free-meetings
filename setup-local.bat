@@ -15,6 +15,9 @@ set "NODE_DIR=%TOOLS%\node\%NODE_FOLDER%"
 set "OLLAMA_DIR=%TOOLS%\ollama"
 set "OLLAMA_EXE=%OLLAMA_DIR%\ollama.exe"
 set "OLLAMA_MODEL=qwen3.5:0.8b"
+set "REQUIRED_OLLAMA_MODELS=qwen3.5:0.8b"
+set "OPTIONAL_OLLAMA_MODELS=qwen3.5:2b"
+set "REQUIRED_WHISPER_MODELS=tiny,base"
 set "USING_SYSTEM_OLLAMA=0"
 
 if not exist "%LOGS%" mkdir "%LOGS%"
@@ -287,18 +290,23 @@ taskkill /f /im ollama.exe >nul 2>&1
 :: Step 6: Speech recognition model (Whisper)
 :: -------------------------------------------
 :whisper
-set "WHISPER_ONNX=%USERPROFILE%\.transcribe-easy\transformers-cache\onnx-community\whisper-tiny_timestamped\onnx"
+set "WHISPER_TINY_ONNX=%USERPROFILE%\.transcribe-easy\transformers-cache\onnx-community\whisper-tiny_timestamped\onnx"
+set "WHISPER_BASE_ONNX=%USERPROFILE%\.transcribe-easy\transformers-cache\onnx-community\whisper-base_timestamped\onnx"
 
-if exist "%WHISPER_ONNX%\encoder_model.onnx" (
-    if exist "%WHISPER_ONNX%\decoder_model_merged.onnx" (
-        echo  [6/6] Speech recognition ....... already downloaded
-        goto :done
+if exist "%WHISPER_TINY_ONNX%\encoder_model.onnx" (
+    if exist "%WHISPER_TINY_ONNX%\decoder_model_merged.onnx" (
+        if exist "%WHISPER_BASE_ONNX%\encoder_model.onnx" (
+            if exist "%WHISPER_BASE_ONNX%\decoder_model_merged.onnx" (
+                echo  [6/6] Speech recognition ....... already downloaded
+                goto :done
+            )
+        )
     )
 )
 
-echo  [6/6] Speech recognition ....... downloading (~75 MB)
+echo  [6/6] Speech recognition ....... downloading required models
 
-call "%NODE_DIR%\npx.cmd" tsx scripts/download-whisper-tiny.ts > "%LOGS%\whisper-download.log" 2>&1
+call "%NODE_DIR%\npx.cmd" tsx scripts/download-whisper-models.ts > "%LOGS%\whisper-download.log" 2>&1
 if errorlevel 1 (
     echo.
     echo  [WARNING] Speech recognition download failed.

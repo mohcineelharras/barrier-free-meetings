@@ -6,10 +6,7 @@ The repository root `Dockerfile` is intentionally the full self-hosted app image
 
 ## Recommended Demo Setup
 
-- Leave `browser Web Speech` as the first-choice microphone path when supported.
-- Keep backend Whisper enabled as the multilingual fallback.
-- Pin backend Whisper to `tiny` for the hosted demo.
-- Let users manually switch microphone transcription to `Whisper tiny` from the sidebar when they want the hosted backend path.
+- Use **browser Web Speech only** for microphone transcription (no Whisper STT on Spaces).
 - Use `OpenRouter` and/or `Google AI Studio` for translation and reports.
 - Do not use Ollama in the Hugging Face deployment.
 
@@ -54,27 +51,10 @@ These defaults are already baked into the Docker image, but you can override the
 ## What Changes In Hosted Demo Mode
 
 - The Ollama-style offline toggle is hidden.
-- The app starts with Whisper `tiny` as the backend default.
-- The sidebar exposes a manual `Browser Speech` / `Whisper tiny` switch for microphone transcription in hosted demo mode.
+- Transcription is **Browser Speech (microphone) only** — Whisper STT, Device capture, and Browser audio share are disabled.
 - Local setup endpoints are disabled.
-- The demo keeps multilingual Whisper available without trying to bootstrap Ollama.
 - The OpenRouter model dropdown lists all free text chat models from OpenRouter, with a fast light default (`inclusionai/ling-3.0-flash:free`) first.
-- Audio Input includes an opt-in **Browser audio** mode (Mic remains the default).
-
-### Browser audio (tab / window share)
-
-Hosted demos cannot capture audio on the Space host machine. Instead, **Browser audio** uses the browser’s share dialog (`getDisplayMedia`) so users can share a tab or window from their own computer:
-
-1. Select **Browser audio** under Audio Input.
-2. Start recording — Chrome/Edge shows a share picker.
-3. Choose a **Chrome Tab** (or window) and enable **Share tab audio** / **Share audio**.
-4. Transcription always uses Whisper (not Browser Speech) for this path.
-
-Notes:
-
-- Best supported on desktop Chrome/Edge. Safari/Firefox/mobile support is limited.
-- If the Space is embedded in an iframe without `display-capture` permission, open the Space in a top-level tab.
-- Stopping the share (or denying the prompt) ends recording with a clear error.
+- Users need Chrome or Edge with microphone permission. Without browser speech support, recording stays disabled (no Whisper fallback).
 
 ## Expected Limits
 
@@ -82,6 +62,6 @@ On free CPU hardware, this setup is best for:
 
 - casual friend demos
 - a few parallel users
-- short multilingual transcription sessions
+- short multilingual microphone sessions via browser speech recognition
 
-The Docker image caps backend Whisper at `3` active transcription sessions by default for lightweight parallel demo use. If several people all hit backend Whisper at once, expect slower responses. Browser speech recognition remains the best path for keeping the demo responsive.
+Translation and reports still use the configured cloud provider API keys. There is no backend Whisper load on the Space for live transcription.

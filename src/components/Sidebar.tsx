@@ -1,6 +1,5 @@
 import { useState, useEffect, type ReactNode } from 'react';
 import { useModels } from '../hooks/useModels';
-import { useDeviceAudioStatus } from '../hooks/useDeviceAudioStatus';
 import { LANGUAGES } from '../constants/languages';
 import {
   getPreferredModelForProvider,
@@ -232,8 +231,11 @@ export function Sidebar({
   const selectedModelLabel =
     (models.find((model) => model.id === selectedModel)?.name ?? selectedModel) ||
     'Loading models...';
-  const selectedBackendLabel =
-    transcriptionBackendPreference === 'whisper' ? 'Whisper tiny' : 'Browser Speech';
+  const selectedBackendLabel = transcriptionSupport.supportsRemoteWhisper
+    ? transcriptionBackendPreference === 'whisper'
+      ? 'Whisper tiny'
+      : 'Browser Speech'
+    : null;
   const hostedAdvancedSummary = [selectedBackendLabel, selectedProviderLabel, selectedModelLabel]
     .filter(Boolean)
     .join(' • ');
@@ -318,12 +320,15 @@ export function Sidebar({
             </div>
           )}
 
-          <AudioInputSection
-            audioSource={audioSource}
-            onAudioSourceChange={onAudioSourceChange}
-            transcriptionSupport={transcriptionSupport}
-            runtimeConfig={runtimeConfig}
-          />
+          {/* Hosted Spaces: mic + browser speech only — no Device / Browser audio picker. */}
+          {!runtimeConfig.isHostedDemo && (
+            <AudioInputSection
+              audioSource={audioSource}
+              onAudioSourceChange={onAudioSourceChange}
+              transcriptionSupport={transcriptionSupport}
+              runtimeConfig={runtimeConfig}
+            />
+          )}
 
           {/* Setup progress card */}
           {showSetupCard && (
@@ -532,18 +537,13 @@ function AudioInputSection({
   audioSource,
   onAudioSourceChange,
   transcriptionSupport,
-  runtimeConfig,
 }: {
   audioSource: 'microphone' | 'system';
   onAudioSourceChange: (source: 'microphone' | 'system') => void;
   transcriptionSupport: TranscriptionSupport;
   runtimeConfig: RuntimeConfig;
 }) {
-  const { status } = useDeviceAudioStatus(runtimeConfig);
-  const isMac = status?.platform === 'darwin';
-  const swiftAvailable = isMac && status?.available;
   const showSystemCapture = transcriptionSupport.supportsSystemAudioCapture;
-  const useLocalDeviceCapture = runtimeConfig.isLocalhost;
 
   return (
     <Section label="Audio Input">
@@ -565,40 +565,13 @@ function AudioInputSection({
                 : 'bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
             }`}
           >
-            <MonitorIcon />
-            {useLocalDeviceCapture ? (
-              <>
-                Device <span className="ml-1 px-1 py-px text-[8px] font-semibold rounded bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 uppercase tracking-wider">Beta</span>
-              </>
-            ) : (
-              'Browser audio'
-            )}
+            <MonitorIcon /> Browser audio
           </button>
         )}
       </div>
-      {audioSource === 'system' && !useLocalDeviceCapture && (
+      {audioSource === 'system' && (
         <p className="text-xs text-gray-400 dark:text-gray-600">
-          Share a browser tab or window from your computer and enable Share audio / Share tab audio in the prompt. Uses Whisper for transcription.
-        </p>
-      )}
-      {audioSource === 'system' && useLocalDeviceCapture && swiftAvailable && (
-        <p className="text-xs text-gray-400 dark:text-gray-600">
-          Captures any audio playing on your Mac — YouTube, VLC, games, etc. No virtual audio cable needed.
-        </p>
-      )}
-      {audioSource === 'system' && useLocalDeviceCapture && isMac && !swiftAvailable && status && (
-        <p className="text-xs text-amber-600 dark:text-amber-400">
-          macOS Screen Recording permission required. Grant it in System Settings &gt; Privacy &amp; Security &gt; Screen Recording for your terminal app, then restart the backend.
-        </p>
-      )}
-      {audioSource === 'system' && useLocalDeviceCapture && !isMac && status?.available && (
-        <p className="text-xs text-gray-400 dark:text-gray-600">
-          Captures audio playing on your computer.
-        </p>
-      )}
-      {audioSource === 'system' && useLocalDeviceCapture && status && !status.available && status.reason && (
-        <p className="text-xs text-red-500 dark:text-red-400">
-          {status.reason}
+          Chrome/Edge will ask you to share a tab or window — enable Share audio / Share tab audio.
         </p>
       )}
       {!transcriptionSupport.supportsSystemAudioCapture && (

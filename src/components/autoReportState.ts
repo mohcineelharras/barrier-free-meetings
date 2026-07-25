@@ -17,6 +17,10 @@ export function hasAutoReportReadySegments(segments: TranscriptSegment[]): boole
   }
 
   return meaningfulSegments.every((segment) => {
+    if (!segment.isFinal) {
+      return false;
+    }
+
     const translated = segment.translated.trim();
     return translated.length > 0;
   });

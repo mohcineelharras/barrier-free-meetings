@@ -24,11 +24,8 @@ function createStream(
   return stream as unknown as MediaStream;
 }
 
-test('resolveSystemAudioCapturePath uses server device capture on localhost', () => {
-  assert.equal(resolveSystemAudioCapturePath({ isLocalhost: true }), 'server-device');
-});
-
-test('resolveSystemAudioCapturePath uses browser display capture off localhost', () => {
+test('resolveSystemAudioCapturePath always uses browser display capture', () => {
+  assert.equal(resolveSystemAudioCapturePath({ isLocalhost: true }), 'browser-display');
   assert.equal(resolveSystemAudioCapturePath({ isLocalhost: false }), 'browser-display');
 });
 

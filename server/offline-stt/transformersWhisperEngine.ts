@@ -9,8 +9,9 @@ import {
   hasPartialWhisperCache,
   resetWhisperCache,
 } from './transformersWhisperCache';
+import { WHISPER_MODEL_IDS, type WhisperModelName } from '../modelManifest.js';
 
-export type WhisperModelName = 'tiny' | 'base' | 'small' | 'medium' | 'turbo' | 'turbo-v3';
+export type { WhisperModelName } from '../modelManifest.js';
 
 export interface WhisperStatus {
   state: 'idle' | 'downloading' | 'ready';
@@ -22,15 +23,6 @@ const CACHE_DIR = path.join(os.homedir(), '.transcribe-easy', 'transformers-cach
 const WORKER_PATH = new URL('./transformersWhisperWorker.js', import.meta.url);
 
 const ALL_WHISPER_MODELS: WhisperModelName[] = ['tiny', 'base', 'small', 'turbo-v3', 'turbo'];
-
-const MODEL_IDS: Record<WhisperModelName, string> = {
-  tiny: 'onnx-community/whisper-tiny_timestamped',
-  base: 'onnx-community/whisper-base_timestamped',
-  small: 'onnx-community/whisper-small_timestamped',
-  medium: 'onnx-community/whisper-medium_timestamped',
-  turbo: 'onnx-community/lite-whisper-large-v3-turbo-ONNX',
-  'turbo-v3': 'onnx-community/whisper-large-v3-turbo_timestamped',
-};
 
 function getDefaultWhisperModel(): WhisperModelName {
   const candidate = process.env.DEFAULT_WHISPER_MODEL;
@@ -64,6 +56,10 @@ class WhisperWorkerManager {
 
   private readyPromise: Promise<void> | null = null;
 
+  private readyReject: ((error: Error) => void) | null = null;
+
+  private readyResolve: (() => void) | null = null;
+
   private pending = new Map<
     number,
     {
@@ -94,6 +90,8 @@ class WhisperWorkerManager {
     this.worker?.removeAllListeners();
     this.worker = null;
     this.readyPromise = null;
+    this.readyResolve = null;
+    this.readyReject = null;
 
     for (const pending of this.pending.values()) {
       pending.reject(error ?? new Error('Offline Whisper worker stopped unexpectedly'));
@@ -106,7 +104,7 @@ class WhisperWorkerManager {
     }
   }
 
-  private handleWorkerMessage(message: WorkerMessage, resolveReady: () => void, rejectReady: (error: Error) => void): void {
+  private handleWorkerMessage(message: WorkerMessage): void {
     if (message.type === 'status') {
       this.syncStatus({ progress: message.progress, state: message.state });
       return;
@@ -114,7 +112,9 @@ class WhisperWorkerManager {
 
     if (message.type === 'ready') {
       this.syncStatus({ progress: 100, state: 'ready' });
-      resolveReady();
+      this.readyResolve?.();
+      this.readyResolve = null;
+      this.readyReject = null;
       return;
     }
 
@@ -130,7 +130,9 @@ class WhisperWorkerManager {
       const error = new Error(message.message);
       if (message.requestId === null) {
         this.resetWorker(error);
-        rejectReady(error);
+        this.readyReject?.(error);
+        this.readyResolve = null;
+        this.readyReject = null;
         return;
       }
 
@@ -140,6 +142,31 @@ class WhisperWorkerManager {
       pending.reject(error);
       return;
     }
+  }
+
+  private createWorker(): Worker {
+    const worker = new Worker(WORKER_PATH);
+
+    worker.on('message', (raw) => {
+      this.handleWorkerMessage(raw as WorkerMessage);
+    });
+
+    worker.once('error', (error) => {
+      this.readyReject?.(error);
+      this.resetWorker(error);
+    });
+
+    worker.once('exit', (code) => {
+      if (code !== 0) {
+        const error = new Error(`Offline Whisper worker exited with code ${code}`);
+        this.readyReject?.(error);
+        this.resetWorker(error);
+      } else {
+        this.resetWorker();
+      }
+    });
+
+    return worker;
   }
 
   async ensureReady(): Promise<void> {
@@ -156,29 +183,16 @@ class WhisperWorkerManager {
     this.syncStatus({ progress: 0, state: 'downloading' });
 
     this.readyPromise = new Promise<void>((resolve, reject) => {
-      const worker = new Worker(WORKER_PATH);
-      this.worker = worker;
+      if (!this.worker) {
+        this.worker = this.createWorker();
+      }
 
-      worker.on('message', (raw) => {
-        this.handleWorkerMessage(raw as WorkerMessage, resolve, reject);
-      });
+      this.readyResolve = resolve;
+      this.readyReject = reject;
 
-      worker.once('error', (error) => {
-        this.resetWorker(error);
-        reject(error);
-      });
-
-      worker.once('exit', (code) => {
-        if (code !== 0) {
-          this.resetWorker(new Error(`Offline Whisper worker exited with code ${code}`));
-        } else {
-          this.resetWorker();
-        }
-      });
-
-      worker.postMessage({
+      this.worker.postMessage({
         cacheDir: CACHE_DIR,
-        modelId: MODEL_IDS[this.activeModel],
+        modelId: WHISPER_MODEL_IDS[this.activeModel],
         type: 'init',
       });
     });
@@ -244,13 +258,12 @@ class WhisperWorkerManager {
     this.syncStatus({ progress: 0, state: 'idle' });
 
     if (this.worker) {
-      // Wait for any in-flight transcriptions to settle before tearing down
-      // the worker. This prevents sessions from crashing with runtimeFailed
-      // when the model is switched while audio is being processed.
+      // Wait for any in-flight transcriptions to settle before asking the
+      // existing worker to load the next model. Reusing the worker avoids
+      // reloading native ONNX bindings on platforms where addons cannot be
+      // safely unloaded and loaded again in a new worker.
       await Promise.allSettled([...this.inflightTranscriptions.values()]);
-      const worker = this.worker;
-      this.resetWorker();
-      await worker.terminate();
+      this.readyPromise = null;
     }
   }
 
@@ -296,21 +309,31 @@ export function getTransformersWhisperStatus(): WhisperStatus {
 export async function ensureAllTransformersWhisperModelsDownloaded(
   onProgress?: (modelIndex: number, total: number, status: WhisperStatus) => void,
 ): Promise<void> {
-  const saved = manager.getModelName();
+  await ensureTransformersWhisperModelsDownloaded(ALL_WHISPER_MODELS, (_modelName, modelIndex, total, status) => {
+    onProgress?.(modelIndex, total, status);
+  });
+}
 
-  for (let i = 0; i < ALL_WHISPER_MODELS.length; i++) {
-    const modelName = ALL_WHISPER_MODELS[i];
+export async function ensureTransformersWhisperModelsDownloaded(
+  models: WhisperModelName[],
+  onProgress?: (modelName: WhisperModelName, modelIndex: number, total: number, status: WhisperStatus) => void,
+): Promise<void> {
+  const saved = manager.getModelName();
+  const uniqueModels = Array.from(new Set(models));
+
+  for (let i = 0; i < uniqueModels.length; i++) {
+    const modelName = uniqueModels[i];
 
     if (hasCompleteWhisperCache(CACHE_DIR, modelName)) {
       // Already on disk — skip loading into memory, just advance progress
-      onProgress?.(i + 1, ALL_WHISPER_MODELS.length, manager.getStatus());
+      onProgress?.(modelName, i + 1, uniqueModels.length, manager.getStatus());
       continue;
     }
 
     await manager.setModel(modelName);
-    onProgress?.(i, ALL_WHISPER_MODELS.length, manager.getStatus());
+    onProgress?.(modelName, i, uniqueModels.length, manager.getStatus());
     await manager.ensureReady();
-    onProgress?.(i + 1, ALL_WHISPER_MODELS.length, manager.getStatus());
+    onProgress?.(modelName, i + 1, uniqueModels.length, manager.getStatus());
   }
 
   // Restore to the default model and pre-load it so the first transcription is fast

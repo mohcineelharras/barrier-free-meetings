@@ -100,7 +100,7 @@ test('transcription support reports when no reliable live path is available', ()
   assert.match(support.recordingDisabledReason ?? '', /microphone/i);
 });
 
-test('hosted demos disable local-only offline mode while keeping remote whisper available', () => {
+test('hosted demos use browser speech only and never expose whisper STT', () => {
   const support = resolveTranscriptionSupport({
     hasAudioContext: true,
     hasAudioWorkletNode: true,
@@ -115,28 +115,49 @@ test('hosted demos disable local-only offline mode while keeping remote whisper 
   });
 
   assert.equal(support.supportsOfflineMode, false);
-  assert.equal(support.supportsRemoteWhisper, true);
-  assert.equal(support.supportsSystemAudioCapture, true);
+  assert.equal(support.supportsRemoteWhisper, false);
+  assert.equal(support.supportsSystemAudioCapture, false);
+  assert.equal(support.supportsWebSpeechRecognition, true);
+  assert.equal(support.canStartRecording, true);
+  assert.equal(
+    resolveRecordingMode({
+      audioSource: 'microphone',
+      isOffline: false,
+      preferredMicrophoneMode: 'whisper',
+      support,
+    }),
+    'web-speech',
+  );
+  assert.equal(
+    resolveRecordingMode({
+      audioSource: 'system',
+      isOffline: false,
+      support,
+    }),
+    'web-speech',
+  );
 });
 
-test('hosted demos without display media cannot use browser audio capture', () => {
+test('hosted demos without browser speech cannot fall back to whisper', () => {
   const support = resolveTranscriptionSupport({
     hasAudioContext: true,
     hasAudioWorkletNode: true,
     hasConfiguredApiBaseUrl: true,
-    hasDisplayMedia: false,
+    hasDisplayMedia: true,
     hasGetUserMedia: true,
     isHostedDemo: true,
     isLocalhost: false,
-    hasSpeechRecognition: true,
+    hasSpeechRecognition: false,
     hasWebSocket: true,
     isNativeApp: false,
   });
 
-  assert.equal(support.supportsSystemAudioCapture, false);
+  assert.equal(support.supportsRemoteWhisper, false);
+  assert.equal(support.canStartRecording, false);
+  assert.match(support.recordingDisabledReason ?? '', /browser speech/i);
 });
 
-test('localhost keeps system audio capture without display media for server device path', () => {
+test('localhost without display media cannot use browser audio capture', () => {
   const support = resolveTranscriptionSupport({
     hasAudioContext: true,
     hasAudioWorkletNode: true,
@@ -150,66 +171,17 @@ test('localhost keeps system audio capture without display media for server devi
     isNativeApp: false,
   });
 
-  assert.equal(support.supportsSystemAudioCapture, true);
+  assert.equal(support.supportsSystemAudioCapture, false);
 });
 
-test('recording mode can be manually pinned to whisper for hosted-demo microphone use', () => {
+test('non-hosted system audio records with whisper', () => {
   const support = resolveTranscriptionSupport({
     hasAudioContext: true,
     hasAudioWorkletNode: true,
     hasConfiguredApiBaseUrl: true,
     hasDisplayMedia: true,
     hasGetUserMedia: true,
-    isHostedDemo: true,
-    isLocalhost: false,
-    hasSpeechRecognition: true,
-    hasWebSocket: true,
-    isNativeApp: false,
-  });
-
-  assert.equal(
-    resolveRecordingMode({
-      audioSource: 'microphone',
-      isOffline: false,
-      preferredMicrophoneMode: 'whisper',
-      support,
-    }),
-    'whisper',
-  );
-});
-
-test('hosted demo still prefers browser speech before whisper when both are available', () => {
-  const support = resolveTranscriptionSupport({
-    hasAudioContext: true,
-    hasAudioWorkletNode: true,
-    hasConfiguredApiBaseUrl: true,
-    hasDisplayMedia: true,
-    hasGetUserMedia: true,
-    isHostedDemo: true,
-    isLocalhost: false,
-    hasSpeechRecognition: true,
-    hasWebSocket: true,
-    isNativeApp: false,
-  });
-
-  assert.equal(
-    resolveRecordingMode({
-      audioSource: 'microphone',
-      isOffline: false,
-      support,
-    }),
-    'web-speech',
-  );
-});
-
-test('system audio always records with whisper', () => {
-  const support = resolveTranscriptionSupport({
-    hasAudioContext: true,
-    hasAudioWorkletNode: true,
-    hasConfiguredApiBaseUrl: true,
-    hasDisplayMedia: true,
-    hasGetUserMedia: true,
-    isHostedDemo: true,
+    isHostedDemo: false,
     isLocalhost: false,
     hasSpeechRecognition: true,
     hasWebSocket: true,

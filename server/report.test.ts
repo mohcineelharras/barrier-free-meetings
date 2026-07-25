@@ -79,6 +79,60 @@ test("buildReportPrompt truncates an overlong transcript before prompting", () =
   assert.ok(prompt.length < 20_000, `expected bounded prompt, got ${prompt.length}`);
 });
 
+test("generateReport chunks long transcripts before synthesizing the final report", async () => {
+  const originalFetch = globalThis.fetch;
+  const originalApiKey = process.env.OPENROUTER_API_KEY;
+  const selectedModel = "inclusionai/ling-3.0-flash:free";
+  const prompts: string[] = [];
+
+  process.env.OPENROUTER_API_KEY = "test-openrouter-key";
+  globalThis.fetch = (async (_input, init) => {
+    const body = JSON.parse(String(init?.body ?? "{}")) as {
+      messages?: Array<{ content?: string }>;
+    };
+    const prompt = body.messages?.[0]?.content ?? "";
+    prompts.push(prompt);
+
+    const content = prompt.includes("CHUNK NOTES")
+      ? "## Summary\nFinal synthesized report."
+      : "Chunk note: discussed accessibility, setup reliability, and reports.";
+
+    return new Response(JSON.stringify({ choices: [{ message: { content } }] }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  }) as typeof fetch;
+
+  try {
+    const segments = Array.from({ length: 420 }, (_, i) => ({
+      original: `Original sentence ${i}. ${"The team discussed reliable onboarding and meeting notes. ".repeat(4)}`,
+      translated: `Phrase traduite ${i}. ${"L'équipe a discuté de l'intégration fiable et des comptes rendus. ".repeat(4)}`,
+    }));
+
+    const report = await generateReport(
+      segments,
+      "English",
+      "French",
+      "French",
+      "openrouter",
+      selectedModel,
+    );
+
+    assert.equal(report, "## Summary\nFinal synthesized report.");
+    assert.ok(prompts.length > 1, `expected chunk prompts plus final prompt, got ${prompts.length}`);
+    assert.match(prompts[0], /Transcript chunk 1/i);
+    assert.doesNotMatch(prompts[0], /middle of the transcript omitted/i);
+    assert.match(prompts.at(-1) ?? "", /CHUNK NOTES/i);
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalApiKey === undefined) {
+      delete process.env.OPENROUTER_API_KEY;
+    } else {
+      process.env.OPENROUTER_API_KEY = originalApiKey;
+    }
+  }
+});
+
 test("generateReport still calls the selected OpenRouter model for short transcripts", async () => {
   const originalFetch = globalThis.fetch;
   const originalApiKey = process.env.OPENROUTER_API_KEY;

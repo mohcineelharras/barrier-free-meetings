@@ -68,8 +68,12 @@ set "PATH=%NODE_DIR%;%PATH%"
 set "NODE_ENV=production"
 set "HOST=127.0.0.1"
 set "DISABLE_AUTO_SETUP=true"
+set "TRANSCRIBE_EASY_SETUP_MODE=disabled"
 set "OLLAMA_HOST=127.0.0.1:11434"
 set "DEFAULT_WHISPER_MODEL=tiny"
+set "REQUIRED_OLLAMA_MODELS=qwen3.5:0.8b"
+set "OPTIONAL_OLLAMA_MODELS=qwen3.5:2b"
+set "REQUIRED_WHISPER_MODELS=tiny,base"
 set "OLLAMA_LOG=%TEMP%\transcribe-easy-ollama.log"
 
 :: Only override OLLAMA_MODELS for bundled Ollama.

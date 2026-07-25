@@ -3,6 +3,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+import { getModelManifest, WHISPER_MODEL_IDS } from '../server/modelManifest.js';
+
 const CACHE_DIR = path.join(os.homedir(), '.transcribe-easy', 'transformers-cache');
 
 async function downloadModel(modelId) {
@@ -43,13 +45,7 @@ async function downloadModel(modelId) {
 async function main() {
   fs.mkdirSync(CACHE_DIR, { recursive: true });
   
-  const models = [
-    'onnx-community/whisper-tiny_timestamped',
-    'onnx-community/whisper-base_timestamped',
-    'onnx-community/whisper-small_timestamped',
-    'onnx-community/whisper-large-v3-turbo_timestamped',
-    'onnx-community/lite-whisper-large-v3-turbo-ONNX',
-  ];
+  const models = getModelManifest().requiredWhisperModels.map((model) => WHISPER_MODEL_IDS[model]);
   
   const results = {};
   

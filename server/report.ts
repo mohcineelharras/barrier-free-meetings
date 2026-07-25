@@ -26,6 +26,7 @@ const REPORT_MAX_TOKENS = 768;
 // report model's context window. ~16k chars ≈ 4k input tokens, leaving room for the
 // instructions and the 768-token response.
 const REPORT_MAX_TRANSCRIPT_CHARS = 16_000;
+const REPORT_CHUNK_TRANSCRIPT_CHARS = 12_000;
 const TRANSCRIPT_TRUNCATION_MARKER =
   '[… middle of the transcript omitted to fit the model context limit …]';
 
@@ -186,6 +187,89 @@ TRANSCRIPT (${sourceLang} with ${targetLang} translations):
 ${transcript}`;
 }
 
+function splitTranscriptLinesIntoChunks(lines: string[], maxChars: number): string[] {
+  const chunks: string[] = [];
+  let current: string[] = [];
+  let currentLength = 0;
+  const separator = '\n\n';
+
+  for (const line of lines) {
+    const lineLength = line.length + (current.length > 0 ? separator.length : 0);
+    if (current.length > 0 && currentLength + lineLength > maxChars) {
+      chunks.push(current.join(separator));
+      current = [];
+      currentLength = 0;
+    }
+
+    current.push(line);
+    currentLength += line.length + (current.length > 1 ? separator.length : 0);
+  }
+
+  if (current.length > 0) {
+    chunks.push(current.join(separator));
+  }
+
+  return chunks;
+}
+
+function buildReportChunkPrompt(
+  chunk: string,
+  chunkIndex: number,
+  totalChunks: number,
+  sourceLang: string,
+  targetLang: string,
+): string {
+  return `You are preparing grounded meeting notes from a long transcript.
+
+Transcript chunk ${chunkIndex + 1} of ${totalChunks}.
+
+Write concise notes only from this chunk. Capture:
+- Key topics explicitly discussed
+- Decisions explicitly made
+- Action items or next steps explicitly stated
+- Important context that may be needed when combining chunks
+
+Do NOT invent participants, decisions, dates, owners, or project details.
+Do NOT produce the final report yet.
+
+TRANSCRIPT (${sourceLang} with ${targetLang} translations):
+
+${chunk}`;
+}
+
+function buildFinalReportFromChunkNotesPrompt(
+  chunkNotes: string[],
+  reportLang: string,
+): string {
+  return `You are a careful meeting scribe. Based only on the chunk notes below, write a concise structured meeting report in ${reportLang}.
+
+Your report MUST follow this exact structure:
+
+## Summary
+(2–3 sentences capturing the overall purpose and outcome of the meeting)
+
+## Key Topics Discussed
+(bullet points — one line each, 3–8 items)
+
+## Decisions Made
+(bullet points, or write "None identified" if there are none)
+
+## Action Items & Next Steps
+(bullet points with owner name if identifiable, or write "None identified")
+
+Rules:
+- Write entirely in ${reportLang}
+- Be concise and professional
+- Do NOT include any preamble or closing remarks outside the sections above
+- Do NOT invent participants, names, decisions, dates, actions, or project details
+- Only mention decisions or action items if they are explicitly supported by the notes
+- When evidence is insufficient, write "None identified"
+
+CHUNK NOTES:
+
+${chunkNotes.map((note, index) => `Chunk ${index + 1}:\n${note}`).join('\n\n')}`;
+}
+
 async function callOpenRouter(prompt: string, model: string): Promise<string> {
   const makeRequest = async (targetModel: string) => {
     // Paid model (selected or 429 fallback) uses the dedicated paid key when set.
@@ -289,6 +373,17 @@ async function callGoogleAI(prompt: string, model: string): Promise<string> {
   return stripReasoningBlocks(data.choices[0]?.message?.content ?? '');
 }
 
+function getFullTranscriptLength(segments: ReportSegment[], sourceLang: string, targetLang: string): number {
+  return buildTranscriptLines(segments, sourceLang, targetLang).join('\n\n').length;
+}
+
+async function callReportProvider(prompt: string, provider: string, model: string): Promise<string> {
+  if (provider === 'ollama') return callOllama(prompt, model);
+  if (provider === 'google-ai-studio') return callGoogleAI(prompt, model);
+  if (provider === 'minimax') return callMinimaxReport(prompt, model, REPORT_MAX_TOKENS);
+  return callOpenRouter(prompt, model || REPORT_MODEL_FALLBACK);
+}
+
 export async function generateReport(
   segments: ReportSegment[],
   sourceLang: string,
@@ -299,10 +394,21 @@ export async function generateReport(
 ): Promise<string> {
   if (segments.length === 0) throw new Error('No transcript segments to summarise.');
 
-  const prompt = buildReportPrompt(segments, sourceLang, targetLang, reportLang);
+  if (getFullTranscriptLength(segments, sourceLang, targetLang) > REPORT_MAX_TRANSCRIPT_CHARS) {
+    const chunks = splitTranscriptLinesIntoChunks(
+      buildTranscriptLines(segments, sourceLang, targetLang),
+      REPORT_CHUNK_TRANSCRIPT_CHARS,
+    );
+    const chunkNotes: string[] = [];
 
-  if (provider === 'ollama') return callOllama(prompt, model);
-  if (provider === 'google-ai-studio') return callGoogleAI(prompt, model);
-  if (provider === 'minimax') return callMinimaxReport(prompt, model, REPORT_MAX_TOKENS);
-  return callOpenRouter(prompt, model || REPORT_MODEL_FALLBACK);
+    for (const [index, chunk] of chunks.entries()) {
+      const prompt = buildReportChunkPrompt(chunk, index, chunks.length, sourceLang, targetLang);
+      chunkNotes.push(await callReportProvider(prompt, provider, model));
+    }
+
+    return callReportProvider(buildFinalReportFromChunkNotesPrompt(chunkNotes, reportLang), provider, model);
+  }
+
+  const prompt = buildReportPrompt(segments, sourceLang, targetLang, reportLang);
+  return callReportProvider(prompt, provider, model);
 }

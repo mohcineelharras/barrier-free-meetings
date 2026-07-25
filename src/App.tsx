@@ -66,7 +66,9 @@ export default function App() {
   const [storedPreferences] = useState(loadPreferences);
   const defaultWhisperTier: QualityTier = runtimeConfig.isHostedDemo ? 'low' : 'medium';
   const defaultBackendPreference: PreferredMicrophoneMode =
-    transcriptionSupport.supportsWebSpeechRecognition ? 'web-speech' : 'whisper';
+    runtimeConfig.isHostedDemo || transcriptionSupport.supportsWebSpeechRecognition
+      ? 'web-speech'
+      : 'whisper';
   const [sourceLanguage, setSourceLanguage] = useState(storedPreferences.sourceLanguage ?? 'zh-CN');
   const [targetLanguage, setTargetLanguage] = useState(storedPreferences.targetLanguage ?? 'fr-FR');
   const [selectedProvider, setSelectedProvider] = useState(storedPreferences.selectedProvider ?? DEFAULT_PROVIDER);
@@ -80,12 +82,14 @@ export default function App() {
     storedPreferences.audioSource ?? mobileCapabilities.defaultAudioSource,
   );
   const [transcriptionBackendPreference, setTranscriptionBackendPreference] = useState<PreferredMicrophoneMode>(
-    storedPreferences.transcriptionBackendPreference ?? defaultBackendPreference,
+    runtimeConfig.isHostedDemo
+      ? 'web-speech'
+      : storedPreferences.transcriptionBackendPreference ?? defaultBackendPreference,
   );
   const recordingMode = resolveRecordingMode({
     audioSource,
     isOffline,
-    preferredMicrophoneMode: runtimeConfig.isHostedDemo ? transcriptionBackendPreference : undefined,
+    preferredMicrophoneMode: runtimeConfig.isHostedDemo ? 'web-speech' : undefined,
     support: transcriptionSupport,
   });
 
@@ -152,8 +156,6 @@ export default function App() {
     : null;
   const sttBadgeLabel = !transcriptionSupport.canStartRecording
     ? 'No STT available'
-    : runtimeConfig.isHostedDemo && recordingMode === 'whisper'
-    ? 'Whisper tiny'
     : recordingMode === 'whisper'
     ? 'Whisper backend'
     : 'Web Speech';
@@ -182,10 +184,20 @@ export default function App() {
   }, [audioSource, transcriptionSupport.supportsSystemAudioCapture]);
 
   useEffect(() => {
+    if (runtimeConfig.isHostedDemo) {
+      if (transcriptionBackendPreference !== 'web-speech') {
+        setTranscriptionBackendPreference('web-speech');
+      }
+      return;
+    }
     if (!transcriptionSupport.supportsWebSpeechRecognition && transcriptionBackendPreference === 'web-speech') {
       setTranscriptionBackendPreference('whisper');
     }
-  }, [transcriptionBackendPreference, transcriptionSupport.supportsWebSpeechRecognition]);
+  }, [
+    runtimeConfig.isHostedDemo,
+    transcriptionBackendPreference,
+    transcriptionSupport.supportsWebSpeechRecognition,
+  ]);
 
   useEffect(() => {
     stopRecordingRef.current();

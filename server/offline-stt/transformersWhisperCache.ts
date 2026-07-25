@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import type { WhisperModelName } from './transformersWhisperEngine';
+import type { WhisperModelName } from '../modelManifest.js';
 
 const MODEL_CACHE_DIR_NAMES: Record<WhisperModelName, string> = {
   tiny: 'whisper-tiny_timestamped',
