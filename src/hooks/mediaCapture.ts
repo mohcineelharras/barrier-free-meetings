@@ -1,6 +1,16 @@
+import type { RuntimeConfig } from '../config/runtime';
+
 interface MediaDevicesLike {
   getDisplayMedia?: (constraints?: MediaStreamConstraints) => Promise<MediaStream>;
   getUserMedia?: (constraints?: MediaStreamConstraints) => Promise<MediaStream>;
+}
+
+export type SystemAudioCapturePath = 'server-device' | 'browser-display';
+
+export function resolveSystemAudioCapturePath(
+  runtime: Pick<RuntimeConfig, 'isLocalhost'>,
+): SystemAudioCapturePath {
+  return runtime.isLocalhost ? 'server-device' : 'browser-display';
 }
 
 export async function getCaptureStream({
@@ -15,9 +25,10 @@ export async function getCaptureStream({
       throw new Error('System audio capture is not supported in this browser or webview.');
     }
 
+    // Chromium often rejects audio-only getDisplayMedia; request video then discard it.
     const stream = await mediaDevices.getDisplayMedia({
       audio: true,
-      video: false,
+      video: true,
     });
 
     if (stream.getAudioTracks().length === 0) {
@@ -27,7 +38,10 @@ export async function getCaptureStream({
       );
     }
 
-    stream.getVideoTracks().forEach((track) => track.stop());
+    stream.getVideoTracks().forEach((track) => {
+      track.stop();
+      stream.removeTrack(track);
+    });
 
     return stream;
   }

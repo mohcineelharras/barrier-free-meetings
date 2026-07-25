@@ -337,7 +337,8 @@ export default function App() {
   const guardCallbacksRef = useRef<{
     stopRecording: () => void;
     setError: (msg: string | null) => void;
-  }>({ stopRecording: () => {}, setError: () => {} });
+    audioSource: 'microphone' | 'system';
+  }>({ stopRecording: () => {}, setError: () => {}, audioSource: 'microphone' });
 
   const guardCallbacks = useMemo(() => ({
     onNetworkLost: () => {
@@ -357,8 +358,11 @@ export default function App() {
       guardCallbacksRef.current.stopRecording();
     },
     onTrackEnded: () => {
+      const endedViaBrowserAudio = guardCallbacksRef.current.audioSource === 'system';
       guardCallbacksRef.current.setError(
-        'Audio input was disconnected (microphone unplugged or permission revoked). Recording stopped.',
+        endedViaBrowserAudio
+          ? 'Browser audio share ended or was revoked. Recording stopped.'
+          : 'Audio input was disconnected (microphone unplugged or permission revoked). Recording stopped.',
       );
       guardCallbacksRef.current.stopRecording();
     },
@@ -378,6 +382,7 @@ export default function App() {
   guardCallbacksRef.current = {
     stopRecording,
     setError: setVisibleError,
+    audioSource,
   };
 
   const recordingGuard = useRecordingGuard(isRecording, guardCallbacks);

@@ -65,8 +65,10 @@ test('App keeps Audio Input directly below the Online Offline mode switch', () =
 test('App hides beta Device audio capture on non-localhost', () => {
   const html = renderToStaticMarkup(<App />);
 
-  // SSR has no window.location, so isLocalhost is false — Device should be hidden
+  // SSR has no window.location, so isLocalhost is false — Device beta should be hidden.
+  // Browser audio also stays hidden in SSR because getDisplayMedia is unavailable.
   assert.doesNotMatch(html, /Device/);
+  assert.doesNotMatch(html, /Browser audio/);
 });
 
 test('App uses the dynamic viewport height shell to avoid bottom clipping', () => {

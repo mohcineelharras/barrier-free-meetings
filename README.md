@@ -264,8 +264,9 @@ The live demo is already deployed and running. To deploy your own:
 2. Push this repository.
 3. Add at least one secret in the Space settings
    (`OPENROUTER_API_KEY` and/or `GOOGLE_AI_STUDIO_API_KEY`).
-4. The Space will boot in hosted-demo mode: browser STT first, Whisper
-   `tiny` fallback, OpenRouter / Google AI for translation and reports.
+4. The Space will boot in hosted-demo mode: browser speech
+   recognition (microphone) only — no Whisper STT — with OpenRouter /
+   Google AI for translation and reports.
 
 The README's YAML frontmatter and the [`metadata.json`](metadata.json)
 are read by HF Spaces for the Space's name, description, and SDK

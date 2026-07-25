@@ -11,6 +11,7 @@ test('native builds prefer remote whisper and disable device audio plus offline 
     hasDisplayMedia: true,
     hasGetUserMedia: true,
     isHostedDemo: false,
+    isLocalhost: false,
     hasSpeechRecognition: true,
     hasWebSocket: true,
     isNativeApp: true,
@@ -38,6 +39,7 @@ test('browser builds keep current feature set when browser APIs are available', 
     hasDisplayMedia: true,
     hasGetUserMedia: true,
     isHostedDemo: false,
+    isLocalhost: true,
     hasSpeechRecognition: true,
     hasWebSocket: true,
     isNativeApp: false,
@@ -65,6 +67,7 @@ test('browser system audio capture does not require microphone APIs', () => {
     hasDisplayMedia: true,
     hasGetUserMedia: false,
     isHostedDemo: false,
+    isLocalhost: false,
     hasSpeechRecognition: false,
     hasWebSocket: true,
     isNativeApp: false,
@@ -85,6 +88,7 @@ test('transcription support reports when no reliable live path is available', ()
     hasDisplayMedia: false,
     hasGetUserMedia: false,
     isHostedDemo: false,
+    isLocalhost: false,
     hasSpeechRecognition: false,
     hasWebSocket: false,
     isNativeApp: true,
@@ -104,6 +108,7 @@ test('hosted demos disable local-only offline mode while keeping remote whisper 
     hasDisplayMedia: true,
     hasGetUserMedia: true,
     isHostedDemo: true,
+    isLocalhost: false,
     hasSpeechRecognition: true,
     hasWebSocket: true,
     isNativeApp: false,
@@ -111,6 +116,40 @@ test('hosted demos disable local-only offline mode while keeping remote whisper 
 
   assert.equal(support.supportsOfflineMode, false);
   assert.equal(support.supportsRemoteWhisper, true);
+  assert.equal(support.supportsSystemAudioCapture, true);
+});
+
+test('hosted demos without display media cannot use browser audio capture', () => {
+  const support = resolveTranscriptionSupport({
+    hasAudioContext: true,
+    hasAudioWorkletNode: true,
+    hasConfiguredApiBaseUrl: true,
+    hasDisplayMedia: false,
+    hasGetUserMedia: true,
+    isHostedDemo: true,
+    isLocalhost: false,
+    hasSpeechRecognition: true,
+    hasWebSocket: true,
+    isNativeApp: false,
+  });
+
+  assert.equal(support.supportsSystemAudioCapture, false);
+});
+
+test('localhost keeps system audio capture without display media for server device path', () => {
+  const support = resolveTranscriptionSupport({
+    hasAudioContext: true,
+    hasAudioWorkletNode: true,
+    hasConfiguredApiBaseUrl: true,
+    hasDisplayMedia: false,
+    hasGetUserMedia: true,
+    isHostedDemo: false,
+    isLocalhost: true,
+    hasSpeechRecognition: true,
+    hasWebSocket: true,
+    isNativeApp: false,
+  });
+
   assert.equal(support.supportsSystemAudioCapture, true);
 });
 
@@ -122,6 +161,7 @@ test('recording mode can be manually pinned to whisper for hosted-demo microphon
     hasDisplayMedia: true,
     hasGetUserMedia: true,
     isHostedDemo: true,
+    isLocalhost: false,
     hasSpeechRecognition: true,
     hasWebSocket: true,
     isNativeApp: false,
@@ -146,6 +186,7 @@ test('hosted demo still prefers browser speech before whisper when both are avai
     hasDisplayMedia: true,
     hasGetUserMedia: true,
     isHostedDemo: true,
+    isLocalhost: false,
     hasSpeechRecognition: true,
     hasWebSocket: true,
     isNativeApp: false,
@@ -158,5 +199,30 @@ test('hosted demo still prefers browser speech before whisper when both are avai
       support,
     }),
     'web-speech',
+  );
+});
+
+test('system audio always records with whisper', () => {
+  const support = resolveTranscriptionSupport({
+    hasAudioContext: true,
+    hasAudioWorkletNode: true,
+    hasConfiguredApiBaseUrl: true,
+    hasDisplayMedia: true,
+    hasGetUserMedia: true,
+    isHostedDemo: true,
+    isLocalhost: false,
+    hasSpeechRecognition: true,
+    hasWebSocket: true,
+    isNativeApp: false,
+  });
+
+  assert.equal(
+    resolveRecordingMode({
+      audioSource: 'system',
+      isOffline: false,
+      preferredMicrophoneMode: 'web-speech',
+      support,
+    }),
+    'whisper',
   );
 });

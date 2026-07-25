@@ -25,6 +25,7 @@ interface ResolveTranscriptionSupportOptions {
   hasDisplayMedia: boolean;
   hasGetUserMedia: boolean;
   isHostedDemo: boolean;
+  isLocalhost: boolean;
   hasSpeechRecognition: boolean;
   hasWebSocket: boolean;
   isNativeApp: boolean;
@@ -45,6 +46,7 @@ export function resolveTranscriptionSupport({
   hasDisplayMedia,
   hasGetUserMedia,
   isHostedDemo,
+  isLocalhost,
   hasSpeechRecognition,
   hasWebSocket,
   isNativeApp,
@@ -56,7 +58,10 @@ export function resolveTranscriptionSupport({
     hasAudioWorkletNode;
   const supportsMicrophoneCapture = hasGetUserMedia;
   const supportsOfflineMode = !isNativeApp && !isHostedDemo && supportsRemoteWhisper;
-  const supportsSystemAudioCapture = !isNativeApp && supportsRemoteWhisper;
+  const supportsSystemAudioCapture =
+    !isNativeApp &&
+    supportsRemoteWhisper &&
+    (isLocalhost || hasDisplayMedia);
   const supportsWebSpeechRecognition = !isNativeApp && hasSpeechRecognition && supportsMicrophoneCapture;
   const canStartRecording =
     (supportsMicrophoneCapture && (supportsRemoteWhisper || supportsWebSpeechRecognition)) ||
@@ -125,6 +130,7 @@ export function detectTranscriptionSupport(
     hasDisplayMedia: typeof mediaDevices?.getDisplayMedia === 'function',
     hasGetUserMedia: typeof mediaDevices?.getUserMedia === 'function',
     isHostedDemo: runtime.isHostedDemo,
+    isLocalhost: runtime.isLocalhost,
     hasSpeechRecognition:
       typeof windowLike.SpeechRecognition === 'function' ||
       typeof windowLike.webkitSpeechRecognition === 'function',

@@ -14,6 +14,13 @@ export function useDeviceAudioStatus(runtimeConfig: RuntimeConfig) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    // Device-status API is only meaningful for localhost server-side capture.
+    if (!runtimeConfig.isLocalhost) {
+      setStatus(null);
+      setIsLoading(false);
+      return;
+    }
+
     let cancelled = false;
 
     async function check() {

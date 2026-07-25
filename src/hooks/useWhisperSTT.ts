@@ -3,9 +3,9 @@ import {
   applyWhisperSocketMessage,
   type WhisperSocketClientState,
 } from './whisperSocketProtocol';
-import { getCaptureStream } from './mediaCapture';
+import { getCaptureStream, resolveSystemAudioCapturePath } from './mediaCapture';
 import { resolveWhisperRecordingError } from './whisperInterruption';
-import { requireWebSocketUrl, type RuntimeConfig } from '../config/runtime';
+import { getClientRuntimeConfig, requireWebSocketUrl, type RuntimeConfig } from '../config/runtime';
 
 interface UseWhisperSTTProps {
   onSegmentFinalized: (text: string, id: string, confidence: number) => void;
@@ -176,6 +176,17 @@ export function useWhisperSTT({
       if (audioSource === 'microphone' && !navigator.mediaDevices?.getUserMedia) {
         throw new Error('Your browser does not support microphone access on this page.');
       }
+      const resolvedRuntime = runtimeConfig ?? getClientRuntimeConfig();
+      const useServerDeviceCapture =
+        audioSource === 'system' &&
+        resolveSystemAudioCapturePath(resolvedRuntime) === 'server-device';
+      if (
+        audioSource === 'system' &&
+        !useServerDeviceCapture &&
+        !navigator.mediaDevices?.getDisplayMedia
+      ) {
+        throw new Error('Browser audio capture is not supported in this browser or webview.');
+      }
       const ws = new WebSocket(requireWebSocketUrl('/ws/transcribe', runtimeConfig));
       wsRef.current = ws;
       clearStopTimer();
@@ -292,11 +303,15 @@ export function useWhisperSTT({
       ws.send(JSON.stringify({ type: 'config', language: currentLanguage }));
       await serverReady;
 
-      if (audioSource === 'system') {
-        // Server-side device audio capture — no browser media APIs needed
+      if (useServerDeviceCapture) {
+        if (!isRecordingRef.current || stopRequestedRef.current) {
+          stopRecording(false);
+          return;
+        }
+        // Localhost-only server-side device audio capture
         ws.send(JSON.stringify({ type: 'start_device_capture' }));
       } else {
-        // Browser microphone capture
+        // Browser microphone or tab/window audio via getDisplayMedia
         const AudioContextConstructor = getAudioContextConstructor();
         if (typeof AudioContextConstructor !== 'function' || typeof AudioWorkletNode !== 'function') {
           throw new Error('Streaming transcription requires Web Audio Worklet support in this runtime.');
@@ -306,6 +321,14 @@ export function useWhisperSTT({
           audioSource,
           mediaDevices: navigator.mediaDevices,
         });
+
+        // Share picker / getUserMedia can outlive a Stop click or audioSource change.
+        if (!isRecordingRef.current || stopRequestedRef.current) {
+          stream.getTracks().forEach((track) => track.stop());
+          stopRecording(false);
+          return;
+        }
+
         streamRef.current = stream;
 
         const audioTrack = stream.getAudioTracks()[0];
@@ -317,6 +340,11 @@ export function useWhisperSTT({
         audioContextRef.current = audioContext;
 
         await audioContext.audioWorklet.addModule('/worklets/pcm-capture.worklet.js');
+
+        if (!isRecordingRef.current || stopRequestedRef.current) {
+          stopRecording(false);
+          return;
+        }
 
         const source = audioContext.createMediaStreamSource(stream);
         const workletNode = new AudioWorkletNode(audioContext, 'pcm-capture');
@@ -334,19 +362,24 @@ export function useWhisperSTT({
         workletNode.connect(captureSink);
       }
     } catch (err) {
-      const msg =
-        err instanceof Error && err.name === 'NotAllowedError'
-          ? 'Microphone access was denied. Allow microphone access in the system prompt or app settings and try again.'
-          : err instanceof Error
-          ? err.message
-          : 'Failed to start recording';
+      const isPermissionDenied =
+        err instanceof Error && (err.name === 'NotAllowedError' || err.name === 'AbortError');
+      const msg = isPermissionDenied
+        ? audioSource === 'system'
+          ? 'Browser audio share was denied or cancelled. Allow tab or window sharing (with Share audio enabled) and try again.'
+          : 'Microphone access was denied. Allow microphone access in the system prompt or app settings and try again.'
+        : err instanceof Error
+        ? err.message
+        : 'Failed to start recording';
       setClientError(msg);
       stopRecording(false);
     }
   }, [
     active,
+    audioSource,
     clearStopTimer,
     closeSocket,
+    onTrackAcquired,
     runtimeConfig,
     setClientError,
     setClientInterimTranscript,

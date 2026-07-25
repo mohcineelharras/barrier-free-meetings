@@ -25,6 +25,16 @@ interface SetupStatus {
   step: string;
   progress: number;
   error: string | null;
+  mode?: 'desktop' | 'docker' | 'disabled';
+  requirements?: Array<{
+    id: string;
+    label: string;
+    kind: string;
+    required: boolean;
+    state: 'missing' | 'downloading' | 'verifying' | 'ready' | 'error';
+    progress: number;
+    message?: string;
+  }>;
 }
 
 interface SidebarProps {
@@ -207,6 +217,7 @@ export function Sidebar({
   const isSetupDone = setupStatus?.step === 'ready';
   const isSetupError = setupStatus?.step === 'error';
   const showSetupCard = isOffline && setupStatus && !isSetupDone;
+  const visibleSetupRequirements = setupStatus?.requirements?.filter((requirement) => requirement.required) ?? [];
   const emptyModelsMessage =
     provider === 'google-ai-studio'
       ? 'No Google AI Studio text models are available right now.'
@@ -307,14 +318,12 @@ export function Sidebar({
             </div>
           )}
 
-          {!runtimeConfig.isHostedDemo && (
-            <AudioInputSection
-              audioSource={audioSource}
-              onAudioSourceChange={onAudioSourceChange}
-              transcriptionSupport={transcriptionSupport}
-              runtimeConfig={runtimeConfig}
-            />
-          )}
+          <AudioInputSection
+            audioSource={audioSource}
+            onAudioSourceChange={onAudioSourceChange}
+            transcriptionSupport={transcriptionSupport}
+            runtimeConfig={runtimeConfig}
+          />
 
           {/* Setup progress card */}
           {showSetupCard && (
@@ -333,6 +342,28 @@ export function Sidebar({
                     <div className="bg-blue-500 h-1.5 rounded-full transition-all duration-300" style={{ width: `${setupStatus.progress}%` }} />
                   </div>
                   <p className="text-xs text-gray-500 dark:text-gray-400">{STEP_LABELS[setupStatus.step] ?? setupStatus.step}</p>
+                  {visibleSetupRequirements.length > 0 && (
+                    <div className="mt-1 flex flex-col gap-1">
+                      {visibleSetupRequirements.map((requirement) => (
+                        <div key={requirement.id} className="flex items-center justify-between gap-2 text-[11px] text-gray-500 dark:text-gray-400">
+                          <span className="truncate">{requirement.label}</span>
+                          <span className={
+                            requirement.state === 'ready'
+                              ? 'text-emerald-600 dark:text-emerald-300'
+                              : requirement.state === 'error'
+                              ? 'text-red-500'
+                              : 'text-gray-400 dark:text-gray-500'
+                          }>
+                            {requirement.state === 'ready'
+                              ? 'Ready'
+                              : requirement.state === 'downloading'
+                              ? `${requirement.progress}%`
+                              : requirement.state}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </>
               )}
             </div>
@@ -511,11 +542,12 @@ function AudioInputSection({
   const { status } = useDeviceAudioStatus(runtimeConfig);
   const isMac = status?.platform === 'darwin';
   const swiftAvailable = isMac && status?.available;
-  const showDeviceCapture = runtimeConfig.isLocalhost;
+  const showSystemCapture = transcriptionSupport.supportsSystemAudioCapture;
+  const useLocalDeviceCapture = runtimeConfig.isLocalhost;
 
   return (
     <Section label="Audio Input">
-      <div className={`flex rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 text-xs font-semibold ${!showDeviceCapture ? 'border-transparent' : ''}`}>
+      <div className={`flex rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 text-xs font-semibold ${!showSystemCapture ? 'border-transparent' : ''}`}>
         <button
           type="button"
           onClick={() => onAudioSourceChange('microphone')}
@@ -523,39 +555,48 @@ function AudioInputSection({
         >
           <MicSmallIcon /> Mic
         </button>
-        {showDeviceCapture && (
+        {showSystemCapture && (
           <button
             type="button"
             onClick={() => onAudioSourceChange('system')}
-            disabled={!transcriptionSupport.supportsSystemAudioCapture}
             className={`flex-1 py-1.5 flex items-center justify-center gap-1.5 transition-colors ${
               audioSource === 'system'
                 ? 'bg-blue-600 text-white'
-                : transcriptionSupport.supportsSystemAudioCapture
-                ? 'bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
-                : 'bg-gray-100 dark:bg-gray-900 text-gray-300 dark:text-gray-700 cursor-not-allowed'
+                : 'bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
             }`}
           >
-            <MonitorIcon /> Device <span className="ml-1 px-1 py-px text-[8px] font-semibold rounded bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 uppercase tracking-wider">Beta</span>
+            <MonitorIcon />
+            {useLocalDeviceCapture ? (
+              <>
+                Device <span className="ml-1 px-1 py-px text-[8px] font-semibold rounded bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 uppercase tracking-wider">Beta</span>
+              </>
+            ) : (
+              'Browser audio'
+            )}
           </button>
         )}
       </div>
-      {audioSource === 'system' && swiftAvailable && (
+      {audioSource === 'system' && !useLocalDeviceCapture && (
+        <p className="text-xs text-gray-400 dark:text-gray-600">
+          Share a browser tab or window from your computer and enable Share audio / Share tab audio in the prompt. Uses Whisper for transcription.
+        </p>
+      )}
+      {audioSource === 'system' && useLocalDeviceCapture && swiftAvailable && (
         <p className="text-xs text-gray-400 dark:text-gray-600">
           Captures any audio playing on your Mac — YouTube, VLC, games, etc. No virtual audio cable needed.
         </p>
       )}
-      {audioSource === 'system' && isMac && !swiftAvailable && status && (
+      {audioSource === 'system' && useLocalDeviceCapture && isMac && !swiftAvailable && status && (
         <p className="text-xs text-amber-600 dark:text-amber-400">
           macOS Screen Recording permission required. Grant it in System Settings &gt; Privacy &amp; Security &gt; Screen Recording for your terminal app, then restart the backend.
         </p>
       )}
-      {audioSource === 'system' && !isMac && status?.available && (
+      {audioSource === 'system' && useLocalDeviceCapture && !isMac && status?.available && (
         <p className="text-xs text-gray-400 dark:text-gray-600">
           Captures audio playing on your computer.
         </p>
       )}
-      {audioSource === 'system' && status && !status.available && status.reason && (
+      {audioSource === 'system' && useLocalDeviceCapture && status && !status.available && status.reason && (
         <p className="text-xs text-red-500 dark:text-red-400">
           {status.reason}
         </p>
