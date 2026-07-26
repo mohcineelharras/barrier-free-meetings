@@ -5,10 +5,11 @@ export interface Provider {
 
 export type ProviderId = 'openrouter' | 'google-ai-studio' | 'minimax' | 'ollama';
 
+/** Shared sidebar order for the light Spaces demo and the full self-host UI. */
 export const PROVIDERS: Provider[] = [
   { id: 'openrouter', name: 'OpenRouter' },
-  { id: 'google-ai-studio', name: 'Google AI Studio' },
   { id: 'minimax', name: 'MiniMax' },
+  { id: 'google-ai-studio', name: 'Google AI Studio' },
   { id: 'ollama', name: 'Ollama (local)' },
 ];
 
