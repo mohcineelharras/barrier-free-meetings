@@ -24,7 +24,7 @@ function whisperCacheDir(model: string): string {
   return path.join(os.homedir(), '.transcribe-easy', 'transformers-cache', 'onnx-community', modelDir, 'onnx');
 }
 
-addCheck('Node.js', Number.parseInt(process.versions.node.split('.')[0] ?? '0', 10) >= 22, process.version);
+addCheck('Node.js', Number.parseInt(process.versions.node.split('.')[0] ?? '0', 10) >= 20, process.version);
 addCheck('Frontend build', fs.existsSync(path.join(process.cwd(), 'dist', 'index.html')), 'dist/index.html');
 
 try {

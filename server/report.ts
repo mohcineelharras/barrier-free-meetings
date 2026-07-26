@@ -9,10 +9,10 @@ import {
   UpstreamApiError,
 } from './translate.js';
 import { callMinimaxReport } from './minimax.js';
+import { getOllamaBaseUrl } from './ollamaUrl.js';
 
 const OPENROUTER_CHAT_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const GOOGLE_AI_BASE = 'https://generativelanguage.googleapis.com/v1beta/openai';
-const OLLAMA_BASE_URL = 'http://localhost:11434';
 const REPORT_MODEL_FALLBACK = 'inclusionai/ling-3.0-flash:free';
 // The client aborts at 35s; keep the upstream timeout safely under that so a slow
 // free model on a long transcript fails with our message rather than the client's.
@@ -328,7 +328,7 @@ async function callOpenRouter(prompt: string, model: string): Promise<string> {
 }
 
 async function callOllama(prompt: string, model: string): Promise<string> {
-  const res = await fetchWithTimeout(`${OLLAMA_BASE_URL}/api/chat`, {
+  const res = await fetchWithTimeout(`${getOllamaBaseUrl()}/api/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({

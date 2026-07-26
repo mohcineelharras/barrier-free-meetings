@@ -4,6 +4,7 @@ import test from 'node:test';
 import {
   createInitialSetupStatus,
   getOllamaBaseUrl,
+  getOllamaDownloadUrl,
   getSetupMode,
   updateRequirement,
 } from './setup';
@@ -20,6 +21,15 @@ test('getSetupMode treats Hugging Face Spaces as disabled', () => {
 test('getOllamaBaseUrl respects OLLAMA_HOST with and without protocol', () => {
   assert.equal(getOllamaBaseUrl({ OLLAMA_HOST: 'ollama:11434' }), 'http://ollama:11434');
   assert.equal(getOllamaBaseUrl({ OLLAMA_HOST: 'http://127.0.0.1:11434' }), 'http://127.0.0.1:11434');
+  assert.equal(getOllamaBaseUrl({}), 'http://127.0.0.1:11434');
+});
+
+test('getOllamaDownloadUrl uses current Ollama release asset names', () => {
+  assert.match(getOllamaDownloadUrl('darwin', 'arm64'), /ollama-darwin\.tgz$/);
+  assert.match(getOllamaDownloadUrl('linux', 'x64'), /ollama-linux-amd64\.tar\.zst$/);
+  assert.match(getOllamaDownloadUrl('linux', 'arm64'), /ollama-linux-arm64\.tar\.zst$/);
+  assert.match(getOllamaDownloadUrl('win32', 'x64'), /ollama-windows-amd64\.zip$/);
+  assert.match(getOllamaDownloadUrl('win32', 'arm64'), /ollama-windows-arm64\.zip$/);
 });
 
 test('createInitialSetupStatus preserves legacy fields and exposes requirement details', () => {

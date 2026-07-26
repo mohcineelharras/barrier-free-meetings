@@ -69,11 +69,27 @@ project does the opposite:
 
 ### One-command bootstrap
 
+**macOS / Linux (dev):**
+
 ```bash
 git clone https://github.com/mohcineelharras/barrier-free-meetings.git
 cd barrier-free-meetings
 ./setup.sh
 npm run dev
+```
+
+**macOS / Linux (offline-oriented local install):**
+
+```bash
+./setup-local.sh
+./start-local.sh
+```
+
+**Windows:**
+
+```bat
+setup-local.bat
+start-local.bat
 ```
 
 Open <http://localhost:3000>, allow microphone access, and start
@@ -118,14 +134,15 @@ the chosen Whisper model downloads.
 - **Port 3000** (configurable via `BFM_PORT`).
 - **`Dockerfile.local`** — production build with native-module toolchain
   baked in for onnxruntime-node. Persists `/app/tools` (model cache) and
-  `/app/.cache`.
+  `/app/.cache`. This image does **not** bundle Ollama.
 - **Healthcheck** on `/api/health` — `docker compose ps` will show
   `healthy` once the server is ready.
-- **API keys** are read from the `.env` file in the project root.
-  Anything you set there is exposed to the container automatically.
-- **Local Ollama** is reachable from the container via
-  `http://host.docker.internal:11434` on Docker Desktop, or via the host
-  gateway on Linux. Set `OLLAMA_HOST` in `.env`.
+- **API keys** are read from the optional `.env` file in the project root
+  (`env_file` is not required if you only use compose defaults).
+- **Local Ollama** defaults to `http://host.docker.internal:11434`
+  (Docker Desktop and Linux via `extra_hosts: host-gateway`). Override with
+  `OLLAMA_HOST` in `.env`. For a container that also runs Ollama, use the
+  root [`Dockerfile`](Dockerfile) + `npm run docker:run` instead.
 
 ### Stop / restart / rebuild
 
@@ -164,10 +181,11 @@ Two paths, chosen automatically based on browser support:
   download, no setup, no model weight required.
 - **Local Whisper** via [Hugging Face Transformers
   v4](https://huggingface.co/docs/transformers.js). The first time you
-  select a non-browser model, `server/setup.ts` downloads the weights
-  into `./tools/` (gitignored). Supported sizes include `tiny`, `base`,
-  and `small`, with language-prefixed variants like `tiny.en` for
-  English-only workloads.
+  select a non-browser model, weights download into
+  `~/.transcribe-easy/transformers-cache/` (Windows:
+  `%USERPROFILE%\.transcribe-easy\transformers-cache\`). Supported sizes
+  include `tiny`, `base`, and `small`, with language-prefixed variants
+  like `tiny.en` for English-only workloads.
 
 Set `DEFAULT_WHISPER_MODEL=tiny` (or your preferred size) in `.env` to
 change the boot-time model.

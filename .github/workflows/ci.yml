@@ -31,6 +31,16 @@ jobs:
       - name: Typecheck
         run: npm run lint
 
+      - name: Validate setup scripts
+        run: |
+          bash -n setup.sh
+          bash -n setup-local.sh
+          bash -n start-local.sh
+          bash -n scripts/docker-entrypoint.sh
+          test -x setup.sh
+          test -x setup-local.sh
+          test -x start-local.sh
+
       - name: Test
         run: npm test
         env:

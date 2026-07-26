@@ -9,6 +9,7 @@ release/
 *.log
 .env*
 !.env.example
+!.env.docker.example
 __pycache__/
 tools/
 

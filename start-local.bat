@@ -1,6 +1,6 @@
 @echo off
 :: ============================================================
-::  Transcribe Easy - Local Launcher for Windows
+::  Barrier-Free Meetings - Local Launcher for Windows
 ::  Wakes up Ollama, loads speech recognition, opens browser.
 ::  Run setup-local.bat first if you haven't already.
 :: ============================================================
@@ -74,7 +74,7 @@ set "DEFAULT_WHISPER_MODEL=tiny"
 set "REQUIRED_OLLAMA_MODELS=qwen3.5:0.8b"
 set "OPTIONAL_OLLAMA_MODELS=qwen3.5:2b"
 set "REQUIRED_WHISPER_MODELS=tiny,base"
-set "OLLAMA_LOG=%TEMP%\transcribe-easy-ollama.log"
+set "OLLAMA_LOG=%TEMP%\barrier-free-meetings-ollama.log"
 
 :: Only override OLLAMA_MODELS for bundled Ollama.
 :: System Ollama already knows its model location (~\.ollama\models).
@@ -86,7 +86,7 @@ if "%USING_SYSTEM_OLLAMA%"=="0" (
 cls
 echo.
 echo  ========================================
-echo   Transcribe Easy
+echo   Barrier-Free Meetings
 echo  ========================================
 echo.
 
@@ -138,7 +138,7 @@ if errorlevel 1 (
 start "" /b powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "$s = [System.Diagnostics.Stopwatch]::StartNew(); " ^
   "while ($s.Elapsed.TotalSeconds -lt 45) { " ^
-  "  try { if ((Invoke-WebRequest 'http://127.0.0.1:3000' -UseBasicParsing -TimeoutSec 2).StatusCode -eq 200) { Start-Process 'http://127.0.0.1:3000'; exit 0 } } catch {} " ^
+  "  try { if ((Invoke-WebRequest 'http://127.0.0.1:3000/api/health' -UseBasicParsing -TimeoutSec 2).StatusCode -eq 200) { Start-Process 'http://127.0.0.1:3000'; exit 0 } } catch {} " ^
   "  Start-Sleep -Milliseconds 500 " ^
   "} " ^
   "exit 0"

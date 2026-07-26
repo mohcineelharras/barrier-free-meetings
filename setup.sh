@@ -78,8 +78,9 @@ cat <<'EOF'
 
   Next steps:
     1. Edit .env and add API keys for the providers you want to use.
-    2. Run `npm run dev` to start the dev server on http://localhost:3000.
-    3. Run `npm test` to verify the install (requires at least one provider key).
+    2. Run `npm run dev` for hot-reload, or `./setup-local.sh` then
+       `./start-local.sh` for a fuller offline-oriented local install.
+    3. Run `npm test` / `npm run doctor` to verify the install.
 
   Optional providers (all independent — pick one or several):
     - OpenRouter       https://openrouter.ai/keys

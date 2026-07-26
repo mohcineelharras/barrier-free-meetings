@@ -1,4 +1,4 @@
-import { execSync, spawn, type ChildProcess } from 'node:child_process';
+import { execFileSync, execSync, spawn, type ChildProcess } from 'node:child_process';
 import fs from 'node:fs';
 import https from 'node:https';
 import os from 'node:os';
@@ -6,6 +6,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { getModelManifest, type ModelManifest, type WhisperModelName } from './modelManifest.js';
+import { getOllamaBaseUrl } from './ollamaUrl.js';
+
+export { getOllamaBaseUrl };
 
 export interface SetupStatus {
   step:
@@ -62,12 +65,6 @@ export function getSetupMode(env: NodeJS.ProcessEnv = process.env): SetupMode {
   }
 
   return 'desktop';
-}
-
-export function getOllamaBaseUrl(env: NodeJS.ProcessEnv = process.env): string {
-  const host = env.OLLAMA_HOST?.trim();
-  if (!host) return 'http://127.0.0.1:11434';
-  return host.startsWith('http') ? host : `http://${host}`;
 }
 
 export function createInitialSetupStatus(
@@ -305,15 +302,66 @@ function downloadFile(
   });
 }
 
-function getDownloadUrl(): string {
-  if (process.platform === 'darwin') {
-    return `${OLLAMA_RELEASE_BASE}/ollama-darwin`;
+/** Exported for unit tests — maps platform/arch to current Ollama release assets. */
+export function getOllamaDownloadUrl(
+  platform: NodeJS.Platform = process.platform,
+  arch: string = os.arch(),
+): string {
+  if (platform === 'darwin') {
+    return `${OLLAMA_RELEASE_BASE}/ollama-darwin.tgz`;
   }
-  if (process.platform === 'win32') {
-    return `${OLLAMA_RELEASE_BASE}/ollama-windows-amd64.zip`;
+  if (platform === 'win32') {
+    const winArch = arch === 'arm64' ? 'arm64' : 'amd64';
+    return `${OLLAMA_RELEASE_BASE}/ollama-windows-${winArch}.zip`;
   }
-  const arch = os.arch() === 'arm64' ? 'arm64' : 'amd64';
-  return `${OLLAMA_RELEASE_BASE}/ollama-linux-${arch}`;
+  const linuxArch = arch === 'arm64' ? 'arm64' : 'amd64';
+  return `${OLLAMA_RELEASE_BASE}/ollama-linux-${linuxArch}.tar.zst`;
+}
+
+function findExtractedOllamaBinary(installDir: string): string | null {
+  const candidates = [
+    path.join(installDir, getOllamaBinaryName()),
+    path.join(installDir, 'bin', getOllamaBinaryName()),
+  ];
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) return candidate;
+  }
+  return null;
+}
+
+function extractOllamaArchive(archivePath: string, destDir: string): void {
+  if (archivePath.endsWith('.zip')) {
+    // Handled by caller via adm-zip on Windows.
+    throw new Error('Use adm-zip for .zip archives');
+  }
+
+  if (archivePath.endsWith('.tgz') || archivePath.endsWith('.tar.gz')) {
+    execFileSync('tar', ['-xzf', archivePath, '-C', destDir], { stdio: 'pipe' });
+    return;
+  }
+
+  if (archivePath.endsWith('.tar.zst')) {
+    try {
+      execFileSync('tar', ['--zstd', '-xf', archivePath, '-C', destDir], { stdio: 'pipe' });
+      return;
+    } catch {
+      // Fall back to zstd pipe when tar lacks --zstd (common on macOS).
+    }
+    try {
+      execSync(`zstd -d -c ${JSON.stringify(archivePath)} | tar -xf - -C ${JSON.stringify(destDir)}`, {
+        stdio: 'pipe',
+        shell: '/bin/sh',
+      });
+      return;
+    } catch (error) {
+      throw new Error(
+        `Failed to extract Ollama archive. Install zstd (e.g. apt install zstd / brew install zstd), ` +
+          `or install Ollama from https://ollama.com. ${formatErrorMessage(error)}`,
+      );
+    }
+  }
+
+  throw new Error(`Unsupported Ollama archive format: ${archivePath}`);
 }
 
 async function downloadOllamaBinary(): Promise<string> {
@@ -324,50 +372,44 @@ async function downloadOllamaBinary(): Promise<string> {
   const installDir = getInstallDir();
   fs.mkdirSync(installDir, { recursive: true });
 
-  const binaryPath = path.join(installDir, getOllamaBinaryName());
-  if (fs.existsSync(binaryPath)) return binaryPath;
+  const existing = findExtractedOllamaBinary(installDir);
+  if (existing) return existing;
 
   setStatus({ step: 'downloading-ollama', progress: 0 });
   setRequirement('ollama-binary', { state: 'downloading', progress: 0 });
-  const url = getDownloadUrl();
+  const url = getOllamaDownloadUrl();
+  const archiveName = path.basename(new URL(url).pathname);
+  const archivePath = path.join(installDir, archiveName);
 
-  if (process.platform === 'win32') {
-    const zipPath = path.join(installDir, 'ollama-windows.zip');
-    try {
-      await downloadFile(url, zipPath, (pct) => {
-        setStatus({ progress: pct });
-        setRequirement('ollama-binary', { progress: pct });
-      });
-
-      const AdmZip = (await import('adm-zip')).default;
-      const zip = new AdmZip(zipPath);
-      zip.extractAllTo(installDir, true);
-
-      if (!fs.existsSync(binaryPath)) {
-        throw new Error('ollama.exe not found after extracting zip');
-      }
-      setRequirement('ollama-binary', { state: 'ready', progress: 100 });
-      return binaryPath;
-    } catch (error) {
-      bestEffortRemoveFile(binaryPath, 'Ollama binary');
-      throw error;
-    } finally {
-      bestEffortRemoveFile(zipPath, 'Ollama zip');
-    }
-  }
-
-  // macOS and Linux: download standalone binary directly
   try {
-    await downloadFile(url, binaryPath, (pct) => {
+    await downloadFile(url, archivePath, (pct) => {
       setStatus({ progress: pct });
       setRequirement('ollama-binary', { progress: pct });
     });
-    fs.chmodSync(binaryPath, 0o755);
+
+    if (archivePath.endsWith('.zip')) {
+      const AdmZip = (await import('adm-zip')).default;
+      const zip = new AdmZip(archivePath);
+      zip.extractAllTo(installDir, true);
+    } else {
+      extractOllamaArchive(archivePath, installDir);
+    }
+
+    const binaryPath = findExtractedOllamaBinary(installDir);
+    if (!binaryPath) {
+      throw new Error(`${getOllamaBinaryName()} not found after extracting ${archiveName}`);
+    }
+    if (process.platform !== 'win32') {
+      fs.chmodSync(binaryPath, 0o755);
+    }
     setRequirement('ollama-binary', { state: 'ready', progress: 100 });
     return binaryPath;
   } catch (error) {
-    bestEffortRemoveFile(binaryPath, 'Ollama binary');
+    const partial = findExtractedOllamaBinary(installDir);
+    if (partial) bestEffortRemoveFile(partial, 'Ollama binary');
     throw error;
+  } finally {
+    bestEffortRemoveFile(archivePath, 'Ollama archive');
   }
 }
 
@@ -386,10 +428,19 @@ function startOllamaServer(binaryPath: string) {
   // Allow restart if the previous process has already exited
   if (ollamaProcess && ollamaProcess.exitCode === null) return;
 
+  const libDir = path.dirname(binaryPath);
+  const env = { ...process.env };
+  if (process.platform === 'darwin') {
+    env.DYLD_LIBRARY_PATH = [libDir, env.DYLD_LIBRARY_PATH].filter(Boolean).join(':');
+  } else if (process.platform === 'linux') {
+    env.LD_LIBRARY_PATH = [libDir, env.LD_LIBRARY_PATH].filter(Boolean).join(':');
+  }
+
   ollamaProcess = spawn(binaryPath, ['serve'], {
     detached: false,
     stdio: 'ignore',
-    env: { ...process.env },
+    cwd: libDir,
+    env,
   });
   ollamaProcess.on('error', (err) => {
     console.error('[setup] Failed to start Ollama server:', err.message);

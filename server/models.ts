@@ -1,5 +1,6 @@
 import { OPENROUTER_FAST_FREE_TRANSLATION_MODELS, OPENROUTER_PAID_FALLBACK_MODEL } from './translate.js';
 import { getModelManifest } from './modelManifest.js';
+import { getOllamaBaseUrl } from './ollamaUrl.js';
 export { fetchMinimaxModels } from './minimax.js';
 
 interface OpenRouterModel {
@@ -83,7 +84,7 @@ function normalizeOllamaModelName(name: string): string {
 
 export async function fetchOllamaModels(): Promise<FreeModel[]> {
   try {
-    const response = await fetch('http://localhost:11434/api/tags', {
+    const response = await fetch(`${getOllamaBaseUrl()}/api/tags`, {
       signal: AbortSignal.timeout(2000),
     });
     if (!response.ok) return [];

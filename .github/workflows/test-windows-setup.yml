@@ -2,6 +2,18 @@ name: Test Windows Local Setup
 
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - 'setup-local.bat'
+      - 'start-local.bat'
+      - 'start.bat'
+      - '.github/workflows/test-windows-setup.yml'
+  pull_request:
+    paths:
+      - 'setup-local.bat'
+      - 'start-local.bat'
+      - 'start.bat'
+      - '.github/workflows/test-windows-setup.yml'
 
 jobs:
   test-setup-bat:

@@ -8,12 +8,15 @@
   "bugs": "https://github.com/mohcineelharras/barrier-free-meetings/issues",
   "type": "module",
   "main": "electron/main.cjs",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "tsx watch server.ts",
-    "dev:lan": "HOST=0.0.0.0 CORS_ALLOWED_ORIGINS=* tsx watch server.ts",
+    "dev:lan": "cross-env HOST=0.0.0.0 CORS_ALLOWED_ORIGINS=* tsx watch server.ts",
     "build": "vite build",
     "mobile:build": "npm run build && npx cap sync",
-    "preview": "NODE_ENV=production tsx server.ts",
+    "preview": "cross-env NODE_ENV=production tsx server.ts",
     "docker:build": "docker build -t barrier-free-meetings .",
     "docker:run": "docker run --rm -it -p 3000:3000 -v barrier-free-meetings-ollama:/root/.ollama -v barrier-free-meetings-whisper:/root/.transcribe-easy barrier-free-meetings",
     "docker:build:hf": "docker build -f Dockerfile.hf -t barrier-free-meetings-hf .",
@@ -23,12 +26,12 @@
     "cap:sync": "npx cap sync",
     "cap:open:android": "npx cap open android",
     "cap:open:ios": "npx cap open ios",
-    "clean": "rm -rf dist",
+    "clean": "node -e \"import('node:fs').then(fs=>fs.rmSync('dist',{recursive:true,force:true}))\"",
     "lint": "tsc --noEmit",
     "test": "node --test --import tsx capacitor.config.test.ts server/audioPipeline.e2e.test.ts server/cors.test.ts server/runtimeConfig.test.ts server/modelManifest.test.ts server/setup.test.ts server/translate.test.ts server/googleai.test.ts server/minimax.test.ts server/models.test.ts server/report.test.ts server/whisper.test.ts server/wsTranscribe.test.ts server/transcriptionSessionManager.test.ts server/deviceAudioCapture.test.ts server/offline-stt/transcriptAssembler.test.ts server/offline-stt/session.test.ts server/offline-stt/whisperConfig.test.ts server/offline-stt/transformersWhisperCache.test.ts server/offline-stt/transformersWhisperResult.test.ts src/config/runtime.test.ts src/config/transcriptionSupport.test.ts src/constants/languages.test.ts src/constants/providers.test.ts src/hooks/useHistory.test.ts src/hooks/usePreferences.test.ts src/hooks/mediaCapture.test.ts src/hooks/speechRecognitionController.test.ts src/hooks/whisperInterruption.test.ts src/hooks/whisperSocketProtocol.test.ts src/services/report.test.ts src/components/Sidebar.test.tsx src/components/HistoryPanel.test.tsx src/components/autoReportState.test.ts src/components/conversationLayout.test.ts src/components/reportActionState.test.ts src/App.test.tsx src/utils/languageMatcher.test.ts server/languageVerification.test.ts",
     "dev:landing": "vite --config landing-page/vite.config.ts",
     "build:landing": "vite build --config landing-page/vite.config.ts",
-    "preview:landing": "NODE_ENV=production vite preview --config landing-page/vite.config.ts",
+    "preview:landing": "cross-env NODE_ENV=production vite preview --config landing-page/vite.config.ts",
     "electron:dev": "npm run build && electron .",
     "electron:pack": "npm run build && electron-builder",
     "electron:pack:win": "npm run build && electron-builder --win",
@@ -59,7 +62,10 @@
       "target": [
         {
           "target": "portable",
-          "arch": ["x64", "arm64"]
+          "arch": [
+            "x64",
+            "arm64"
+          ]
         }
       ]
     },
@@ -67,7 +73,10 @@
       "target": [
         {
           "target": "AppImage",
-          "arch": ["x64", "arm64"]
+          "arch": [
+            "x64",
+            "arm64"
+          ]
         }
       ]
     },
@@ -75,11 +84,17 @@
       "target": [
         {
           "target": "dmg",
-          "arch": ["x64", "arm64"]
+          "arch": [
+            "x64",
+            "arm64"
+          ]
         },
         {
           "target": "zip",
-          "arch": ["x64", "arm64"]
+          "arch": [
+            "x64",
+            "arm64"
+          ]
         }
       ],
       "notarize": false
@@ -111,6 +126,7 @@
     "@types/express": "^4.17.21",
     "@types/node": "^22.14.0",
     "autoprefixer": "^10.4.21",
+    "cross-env": "^7.0.3",
     "electron": "^41.5.0",
     "electron-builder": "^26.8.1",
     "tailwindcss": "^4.1.14",

@@ -7,6 +7,7 @@ import {
   DEFAULT_MODEL,
 } from './translate.js';
 import { verifyLanguageWithMinimax } from './minimax.js';
+import { getOllamaBaseUrl } from './ollamaUrl.js';
 
 export function buildLanguageVerificationPrompt(
   text: string,
@@ -94,12 +95,10 @@ export async function verifyLanguageWithOllama(
   model: string,
   expectedLang: TranslationLanguage,
 ): Promise<boolean> {
-  const host = process.env.OLLAMA_HOST || 'http://127.0.0.1:11434';
-  const OLLAMA_BASE_URL = host.startsWith('http') ? host : `http://${host}`;
   const OLLAMA_TRANSLATION_TIMEOUT_MS = 30_000;
 
   const prompt = buildLanguageVerificationPrompt(text, expectedLang);
-  const response = await fetchWithTimeout(`${OLLAMA_BASE_URL}/api/chat`, {
+  const response = await fetchWithTimeout(`${getOllamaBaseUrl()}/api/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({

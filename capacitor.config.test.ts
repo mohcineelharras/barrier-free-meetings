@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
 import capacitorConfig from './capacitor.config';
 
@@ -12,15 +13,10 @@ const packageJson = JSON.parse(
   readFileSync(new URL('./package.json', import.meta.url), 'utf8'),
 ) as PackageJson;
 
-const androidManifest = readFileSync(
+const androidManifestPath = fileURLToPath(
   new URL('./android/app/src/main/AndroidManifest.xml', import.meta.url),
-  'utf8',
 );
-
-const iosInfoPlist = readFileSync(
-  new URL('./ios/App/App/Info.plist', import.meta.url),
-  'utf8',
-);
+const iosInfoPlistPath = fileURLToPath(new URL('./ios/App/App/Info.plist', import.meta.url));
 
 test('Capacitor config targets the Vite dist output', () => {
   assert.equal(capacitorConfig.appName, 'Barrier-Free Meetings');
@@ -36,8 +32,15 @@ test('package scripts include Capacitor mobile workflows', () => {
   assert.equal(packageJson.scripts?.['mobile:build'], 'npm run build && npx cap sync');
 });
 
-test('native shells declare microphone permissions for mobile recording', () => {
-  assert.match(androidManifest, /android\.permission\.RECORD_AUDIO/);
-  assert.match(iosInfoPlist, /NSMicrophoneUsageDescription/);
-  assert.match(iosInfoPlist, /NSSpeechRecognitionUsageDescription/);
-});
+test(
+  'native shells declare microphone permissions for mobile recording',
+  { skip: !existsSync(androidManifestPath) || !existsSync(iosInfoPlistPath) },
+  () => {
+    // android/ and ios/ are generated locally via Capacitor and are not committed.
+    const androidManifest = readFileSync(androidManifestPath, 'utf8');
+    const iosInfoPlist = readFileSync(iosInfoPlistPath, 'utf8');
+    assert.match(androidManifest, /android\.permission\.RECORD_AUDIO/);
+    assert.match(iosInfoPlist, /NSMicrophoneUsageDescription/);
+    assert.match(iosInfoPlist, /NSSpeechRecognitionUsageDescription/);
+  },
+);

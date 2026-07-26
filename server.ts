@@ -1,4 +1,5 @@
-import dotenv from "dotenv";
+// Must be first so .env is loaded before modules that read process.env at import time.
+import "dotenv/config";
 import express from "express";
 import { createServer } from "node:http";
 import os from "node:os";
@@ -29,8 +30,6 @@ import { getServerRuntimeConfig } from "./server/runtimeConfig.js";
 import { attachWebSocketServer } from "./server/wsTranscribe.js";
 import { buildCorsHeaders } from "./server/cors.js";
 
-dotenv.config();
-
 const app = express();
 const httpServer = createServer(app);
 const isProduction = process.env.NODE_ENV === "production";
@@ -60,6 +59,10 @@ app.use((req, res, next) => {
 });
 
 app.use(express.json({ limit: "256kb" }));
+
+app.get("/api/health", (_req, res) => {
+  res.status(200).json({ ok: true });
+});
 
 // Hosted Spaces demos are browser Web Speech only — do not attach Whisper WS.
 const transcribeRuntime = isHostedDemo
@@ -538,7 +541,7 @@ function getLanAddresses(): string[] {
 }
 
 httpServer.listen(port, host, () => {
-  console.log(`Transcribe Easy listening on http://${host}:${port}`);
+  console.log(`Barrier-Free Meetings listening on http://${host}:${port}`);
   if (host === '0.0.0.0') {
     const addresses = getLanAddresses();
     if (addresses.length > 0) {

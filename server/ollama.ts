@@ -4,16 +4,8 @@ import {
   type TranslationLanguage,
   UpstreamApiError,
 } from './translate.js';
+import { getOllamaBaseUrl } from './ollamaUrl.js';
 
-function getOllamaBaseUrl(): string {
-  const host = process.env.OLLAMA_HOST;
-  if (host) {
-    return host.startsWith('http') ? host : `http://${host}`;
-  }
-  return 'http://127.0.0.1:11434';
-}
-
-const OLLAMA_BASE_URL = getOllamaBaseUrl();
 const OLLAMA_TRANSLATION_TIMEOUT_MS = 30_000;
 const THINK_BLOCK_PATTERN = /<think\b[^>]*>[\s\S]*?<\/think>\s*/gi;
 
@@ -27,7 +19,7 @@ export async function translateWithOllama(
   sourceLang: TranslationLanguage,
   targetLang: TranslationLanguage,
 ): Promise<string> {
-  const response = await fetchWithTimeout(`${OLLAMA_BASE_URL}/api/chat`, {
+  const response = await fetchWithTimeout(`${getOllamaBaseUrl()}/api/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -53,7 +45,7 @@ export async function translateWithOllama(
 
 export async function isOllamaRunning(): Promise<boolean> {
   try {
-    const res = await fetch(`${OLLAMA_BASE_URL}/api/tags`, { signal: AbortSignal.timeout(2000) });
+    const res = await fetch(`${getOllamaBaseUrl()}/api/tags`, { signal: AbortSignal.timeout(2000) });
     return res.ok;
   } catch {
     return false;

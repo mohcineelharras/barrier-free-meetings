@@ -8,6 +8,9 @@ services:
     restart: unless-stopped
     ports:
       - "${BFM_PORT:-3000}:3000"
+    extra_hosts:
+      # Lets Linux reach Ollama (or other services) on the Docker host.
+      - "host.docker.internal:host-gateway"
     environment:
       # --- Server ---
       NODE_ENV: production
@@ -19,15 +22,13 @@ services:
       MAX_ACTIVE_TRANSCRIPTIONS: ${BFM_MAX_ACTIVE_TRANSCRIPTIONS:-2}
       MAX_QUEUE_SIZE: ${BFM_MAX_QUEUE_SIZE:-4}
       MAX_WS_CONNECTIONS: ${BFM_MAX_WS_CONNECTIONS:-4}
-      # --- Translation providers (uncomment / fill what you want) ---
-      # OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
-      # GOOGLE_AI_STUDIO_API_KEY: ${GOOGLE_AI_STUDIO_API_KEY}
-      # MINIMAX_API_KEY: ${MINIMAX_API_KEY}
-      # OLLAMA_HOST: http://host.docker.internal:11434
+      # Local image has no bundled Ollama — point at the host by default.
+      OLLAMA_HOST: ${OLLAMA_HOST:-http://host.docker.internal:11434}
       # --- CORS / mobile shells ---
       CORS_ALLOWED_ORIGINS: ${BFM_CORS_ALLOWED_ORIGINS:-http://localhost:3000,capacitor://localhost}
     env_file:
-      - .env
+      - path: .env
+        required: false
     volumes:
       # Persist downloaded Whisper models across container rebuilds.
       - bfm-tools:/app/tools

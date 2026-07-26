@@ -1,6 +1,6 @@
 @echo off
 :: ============================================================
-::  Transcribe Easy - One-Click Local Setup for Windows
+::  Barrier-Free Meetings - One-Click Local Setup for Windows
 ::  No admin rights required. Everything installs to user space.
 :: ============================================================
 
@@ -19,20 +19,33 @@ set "REQUIRED_OLLAMA_MODELS=qwen3.5:0.8b"
 set "OPTIONAL_OLLAMA_MODELS=qwen3.5:2b"
 set "REQUIRED_WHISPER_MODELS=tiny,base"
 set "USING_SYSTEM_OLLAMA=0"
+set "OLLAMA_PID="
+
+if /i "%PROCESSOR_ARCHITECTURE%"=="ARM64" (
+    echo.
+    echo  ERROR: This setup script currently supports 64-bit Intel/AMD Windows only.
+    echo  On Windows ARM, install Node.js and Ollama system-wide, then run:
+    echo    npm install
+    echo    npm run build
+    echo    start-local.bat
+    echo.
+    pause
+    exit /b 1
+)
 
 if not exist "%LOGS%" mkdir "%LOGS%"
 
 cls
 echo.
 echo  ========================================
-echo   Transcribe Easy - Setup
+echo   Barrier-Free Meetings - Setup
 echo  ========================================
 echo.
 echo   This will install everything you need
-echo   to run Transcribe Easy on this computer.
+echo   to run Barrier-Free Meetings locally.
 echo.
-echo   Estimated time: 5-15 minutes
-echo   (depending on your internet speed)
+echo   Estimated time: 10-30 minutes
+echo   ^(Ollama alone can be ~1.4 GB^)
 echo.
 echo  ========================================
 echo.
@@ -42,7 +55,7 @@ echo.
 :: -------------------------------------------
 if exist "%NODE_DIR%\node.exe" (
     echo  [1/6] App engine ............... already installed
-    goto :deps
+    goto :env
 )
 
 :: Check if Node.js is already installed on the system
@@ -53,7 +66,7 @@ if not errorlevel 1 (
         pushd "%%~dpi"
         set "NODE_DIR=%CD%"
         popd
-        goto :deps
+        goto :env
     )
 )
 
@@ -90,6 +103,19 @@ if not exist "%NODE_DIR%\node.exe" (
 
 echo  [1/6] App engine ............... done
 echo.
+
+:: -------------------------------------------
+:: Step 1b: Environment file
+:: -------------------------------------------
+:env
+if exist "%ROOT%.env" (
+    echo  [env]  .env ..................... already present
+) else if exist "%ROOT%.env.example" (
+    copy /y "%ROOT%.env.example" "%ROOT%.env" >nul
+    echo  [env]  .env ..................... created from .env.example
+) else (
+    echo  [env]  .env ..................... skipped ^(no .env.example^)
+)
 
 :: -------------------------------------------
 :: Step 2: App libraries (npm install)
@@ -242,8 +268,8 @@ if "%USING_SYSTEM_OLLAMA%"=="0" (
     set "OLLAMA_MODELS=%OLLAMA_DIR%\models"
 )
 set "OLLAMA_HOST=127.0.0.1:11434"
-set "OLLAMA_LOG=%TEMP%\transcribe-easy-ollama.log"
-start "" /b cmd /c ""%OLLAMA_EXE%" serve > "%OLLAMA_LOG%" 2>&1"
+set "OLLAMA_LOG=%TEMP%\barrier-free-meetings-ollama.log"
+for /f %%p in ('powershell -NoProfile -Command "(Start-Process -FilePath '%OLLAMA_EXE%' -ArgumentList 'serve' -WindowStyle Hidden -RedirectStandardOutput '%OLLAMA_LOG%' -RedirectStandardError '%OLLAMA_LOG%' -PassThru).Id"') do set "OLLAMA_PID=%%p"
 
 :: Wait for Ollama server to be ready
 echo         Starting AI engine...
@@ -263,7 +289,7 @@ if errorlevel 1 (
     echo  [ERROR] AI engine failed to start.
     echo  Details saved to: %OLLAMA_LOG%
     echo  Please try running this setup again.
-    taskkill /f /im ollama.exe >nul 2>&1
+    if defined OLLAMA_PID taskkill /PID %OLLAMA_PID% /F >nul 2>&1
     pause
     exit /b 1
 )
@@ -274,7 +300,7 @@ if errorlevel 1 (
     echo.
     echo  [ERROR] Model download failed.
     echo  Please check your internet connection and try again.
-    taskkill /f /im ollama.exe >nul 2>&1
+    if defined OLLAMA_PID taskkill /PID %OLLAMA_PID% /F >nul 2>&1
     pause
     exit /b 1
 )
@@ -283,8 +309,10 @@ echo.
 echo  [5/6] Translation model ........ done
 echo.
 
-:: Stop the Ollama server (start-local.bat will restart it)
-taskkill /f /im ollama.exe >nul 2>&1
+:: Stop only the Ollama process we started (leave system Ollama alone)
+if defined OLLAMA_PID (
+    taskkill /PID %OLLAMA_PID% /F >nul 2>&1
+)
 
 :: -------------------------------------------
 :: Step 6: Speech recognition model (Whisper)

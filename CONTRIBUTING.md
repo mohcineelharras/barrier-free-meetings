@@ -8,7 +8,9 @@ requests.
 
 1. **Fork** the repository and clone your fork.
 2. **Install dependencies:** `npm install` (the server runs through `tsx`,
-   so no separate build step is needed for development).
+   so no separate build step is needed for development). Or use
+   `./setup.sh` / `./setup-local.sh` (macOS/Linux) or `setup-local.bat`
+   (Windows).
 3. **Copy the env template:** `cp .env.example .env` and fill in the keys
    you want to test against. Most providers are independent — you can run
    the app with just an `OPENROUTER_API_KEY` or just an `OLLAMA_HOST`.
