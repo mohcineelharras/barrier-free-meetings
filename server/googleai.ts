@@ -27,7 +27,40 @@ interface GoogleAIModelsResponse {
   models?: GoogleAIModel[];
 }
 
-function normalizeGoogleAIModels(data: GoogleAIModelsResponse): { id: string; name: string }[] {
+/** Image / media model tokens that match gemini* but are useless for live translation. */
+const NON_TRANSLATION_MODEL_TOKENS = new Set([
+  'image',
+  'imagen',
+  'veo',
+  'tts',
+  'audio',
+  'live',
+  'banana',
+  'embedding',
+  'aqa',
+  'robotics',
+]);
+
+function containsNonTranslationToken(value: string): boolean {
+  return value
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .some((token) => token.length > 0 && NON_TRANSLATION_MODEL_TOKENS.has(token));
+}
+
+/**
+ * Keep only text chat models suitable for translation.
+ * Excludes Nano Banana / Gemini Image, Veo, TTS, Live, embeddings, etc.
+ */
+export function isGoogleAITranslationModel(id: string, displayName = ''): boolean {
+  if (!/^(gemma|gemini)/i.test(id)) {
+    return false;
+  }
+
+  return !containsNonTranslationToken(id) && !containsNonTranslationToken(displayName);
+}
+
+export function normalizeGoogleAIModels(data: GoogleAIModelsResponse): { id: string; name: string }[] {
   if (!Array.isArray(data.models)) {
     throw new Error('Unexpected Google AI Studio models response.');
   }
@@ -39,13 +72,13 @@ function normalizeGoogleAIModels(data: GoogleAIModelsResponse): { id: string; na
     if (!supportedGenerationMethods.includes('generateContent')) continue;
 
     const id = model.baseModelId ?? model.name?.replace(/^models\//, '');
-    if (!id || !/gemma|gemini/i.test(id)) continue;
+    if (!id) continue;
+
+    const name = model.displayName?.trim() || id;
+    if (!isGoogleAITranslationModel(id, name)) continue;
 
     if (!modelsById.has(id)) {
-      modelsById.set(id, {
-        id,
-        name: model.displayName?.trim() || id,
-      });
+      modelsById.set(id, { id, name });
     }
   }
 

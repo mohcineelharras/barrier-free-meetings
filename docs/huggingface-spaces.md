@@ -43,17 +43,17 @@ These defaults are already baked into the Docker image, but you can override the
 
 - `HF_SPACES=true`
 - `DISABLE_AUTO_SETUP=true`
-- `DEFAULT_WHISPER_MODEL=tiny`
-- `MAX_ACTIVE_TRANSCRIPTIONS=3`
 - `HOST=0.0.0.0`
 - `PORT=7860`
+- `TRANSLATION_FALLBACK_ORDER=openrouter,minimax,google-ai-studio`
 
 ## What Changes In Hosted Demo Mode
 
 - The Ollama-style offline toggle is hidden.
-- Transcription is **Browser Speech (microphone) only** — Whisper STT, Device capture, and Browser audio share are disabled.
+- Transcription is **Browser Speech (microphone) only** — backend Whisper WebSocket STT is not attached, and Device capture / system-audio share are disabled.
 - Local setup endpoints are disabled.
 - The OpenRouter model dropdown lists all free text chat models from OpenRouter, with a fast light default (`inclusionai/ling-3.0-flash:free`) first.
+- Live translation failover order is **OpenRouter → MiniMax → Gemini** (override with `TRANSLATION_FALLBACK_ORDER`).
 - Users need Chrome or Edge with microphone permission. Without browser speech support, recording stays disabled (no Whisper fallback).
 
 ## Expected Limits
@@ -64,4 +64,4 @@ On free CPU hardware, this setup is best for:
 - a few parallel users
 - short multilingual microphone sessions via browser speech recognition
 
-Translation and reports still use the configured cloud provider API keys. There is no backend Whisper load on the Space for live transcription.
+Translation and reports still use the configured cloud provider API keys. There is no backend Whisper load on the Space.

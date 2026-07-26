@@ -154,7 +154,7 @@ The default free-only fallback chain is:
 1. OpenRouter `liquid/lfm-2.5-1.2b-instruct:free`
 2. Gemma 4 26B A4B (Google AI Studio)
 3. Gemma 4 31B IT (Google AI Studio)
-4. MiniMax M2.7
+4. MiniMax M3
 
 ## Speech-to-text
 

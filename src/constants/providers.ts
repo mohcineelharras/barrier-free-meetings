@@ -23,7 +23,7 @@ export const DEFAULT_PROVIDER: ProviderId =
 
 export const OPENROUTER_DEFAULT_MODEL = 'inclusionai/ling-3.0-flash:free';
 export const GOOGLE_AI_STUDIO_DEFAULT_MODEL = 'gemma-4-26b-a4b-it';
-export const MINIMAX_DEFAULT_MODEL = 'MiniMax-M2.7';
+export const MINIMAX_DEFAULT_MODEL = 'MiniMax-M3';
 export const OLLAMA_DEFAULT_MODEL = 'qwen3.5:0.8b';
 
 export function getPreferredModelForProvider(provider: ProviderId): string {

@@ -22,11 +22,9 @@ ENV PORT=7860
 ENV HF_SPACES=true
 ENV DISABLE_AUTO_SETUP=true
 ENV TRANSCRIBE_EASY_SETUP_MODE=disabled
-ENV DEFAULT_WHISPER_MODEL=tiny
-ENV MAX_ACTIVE_TRANSCRIPTIONS=3
-ENV MAX_QUEUE_SIZE=3
-ENV MAX_WS_CONNECTIONS=6
 ENV VITE_HOSTED_DEMO=true
+# Live translation failover for the public demo.
+ENV TRANSLATION_FALLBACK_ORDER=openrouter,minimax,google-ai-studio
 
 COPY package*.json ./
 RUN npm install --omit=dev --ignore-scripts

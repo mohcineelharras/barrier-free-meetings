@@ -259,11 +259,15 @@ export default function App() {
         const provider = isOffline ? 'ollama' : selectedProvider;
         const sourceLang = getLanguageName(sourceLanguage);
         const targetLang = getLanguageName(targetLanguage);
+        // Hosted demo: server owns OpenRouter → MiniMax → Gemini failover.
+        // Self-host: keep a client-side Gemini retry if OpenRouter alone 429s.
         const attempts = provider === 'openrouter'
-          ? [
-               { provider: 'openrouter', model: selectedModel },
-               { provider: 'google-ai-studio', model: GOOGLE_AI_STUDIO_DEFAULT_MODEL },
-             ]
+          ? runtimeConfig.isHostedDemo
+            ? [{ provider: 'openrouter', model: selectedModel }]
+            : [
+                { provider: 'openrouter', model: selectedModel },
+                { provider: 'google-ai-studio', model: GOOGLE_AI_STUDIO_DEFAULT_MODEL },
+              ]
           : [{ provider, model: selectedModel }];
 
         let translation = '';

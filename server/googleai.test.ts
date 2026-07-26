@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   GOOGLE_AI_TRANSLATION_TIMEOUT_MS,
   fetchGoogleAIModels,
+  isGoogleAITranslationModel,
   translateWithGoogleAI,
 } from "./googleai";
 
@@ -18,6 +19,16 @@ test.afterEach(() => {
   } else {
     process.env.GOOGLE_AI_STUDIO_API_KEY = originalGoogleApiKey;
   }
+});
+
+test("isGoogleAITranslationModel keeps text chat models and drops image/media models", () => {
+  assert.equal(isGoogleAITranslationModel("gemini-2.5-flash", "Gemini 2.5 Flash"), true);
+  assert.equal(isGoogleAITranslationModel("gemma-4-26b-a4b-it", "Gemma 4 26B A4B"), true);
+  assert.equal(isGoogleAITranslationModel("gemini-3-pro-image", "Nano Banana Pro"), false);
+  assert.equal(isGoogleAITranslationModel("gemini-2.5-flash-image", "Nano Banana"), false);
+  assert.equal(isGoogleAITranslationModel("gemini-2.5-flash-preview-tts", "Gemini 2.5 Flash Preview TTS"), false);
+  assert.equal(isGoogleAITranslationModel("veo-3.0-generate-001", "Veo 3"), false);
+  assert.equal(isGoogleAITranslationModel("text-embedding-004", "Text Embedding 004"), false);
 });
 
 test("fetchGoogleAIModels maps Gemini REST models to selectable text models", async () => {
@@ -44,6 +55,24 @@ test("fetchGoogleAIModels maps Gemini REST models to selectable text models", as
             supportedGenerationMethods: ["generateContent"],
           },
           {
+            name: "models/gemini-3-pro-image",
+            baseModelId: "gemini-3-pro-image",
+            displayName: "Nano Banana Pro",
+            supportedGenerationMethods: ["generateContent"],
+          },
+          {
+            name: "models/gemini-2.5-flash-image",
+            baseModelId: "gemini-2.5-flash-image",
+            displayName: "Nano Banana",
+            supportedGenerationMethods: ["generateContent"],
+          },
+          {
+            name: "models/gemma-4-26b-a4b-it",
+            baseModelId: "gemma-4-26b-a4b-it",
+            displayName: "Gemma 4 26B A4B",
+            supportedGenerationMethods: ["generateContent"],
+          },
+          {
             name: "models/text-embedding-004",
             baseModelId: "text-embedding-004",
             displayName: "Text Embedding 004",
@@ -64,6 +93,10 @@ test("fetchGoogleAIModels maps Gemini REST models to selectable text models", as
     {
       id: "gemini-2.5-flash",
       name: "Gemini 2.5 Flash",
+    },
+    {
+      id: "gemma-4-26b-a4b-it",
+      name: "Gemma 4 26B A4B",
     },
   ]);
 });

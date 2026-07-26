@@ -61,18 +61,108 @@ app.use((req, res, next) => {
 
 app.use(express.json({ limit: "256kb" }));
 
-const transcribeRuntime = attachWebSocketServer(httpServer, {
-  config: transcription,
-  isOriginAllowed: (origin) => !origin || buildCorsHeaders(origin) !== null,
-});
+// Hosted Spaces demos are browser Web Speech only — do not attach Whisper WS.
+const transcribeRuntime = isHostedDemo
+  ? null
+  : attachWebSocketServer(httpServer, {
+      config: transcription,
+      isOriginAllowed: (origin) => !origin || buildCorsHeaders(origin) !== null,
+    });
 
 const GOOGLE_AI_PRIMARY_FALLBACK_MODEL = "gemma-4-26b-a4b-it";
 const GOOGLE_AI_SECONDARY_FALLBACK_MODEL = "gemma-4-31b-it";
-const MINIMAX_FALLBACK_MODEL = "MiniMax-M2.7";
+const MINIMAX_FALLBACK_MODEL = "MiniMax-M3";
+
+type FallbackProviderId =
+  | "openrouter"
+  | "minimax"
+  | "google-ai-studio"
+  | "google-ai-studio-secondary";
 
 interface FallbackResult {
   translation: string;
   fallback?: string;
+}
+
+interface FallbackStep {
+  fallback?: string;
+  available: boolean;
+  run: () => Promise<string>;
+}
+
+/** Default self-host order. Hosted Spaces override via TRANSLATION_FALLBACK_ORDER. */
+const DEFAULT_FALLBACK_ORDER: FallbackProviderId[] = [
+  "openrouter",
+  "google-ai-studio",
+  "google-ai-studio-secondary",
+  "minimax",
+];
+
+const HOSTED_DEMO_FALLBACK_ORDER: FallbackProviderId[] = [
+  "openrouter",
+  "minimax",
+  "google-ai-studio",
+];
+
+function parseFallbackOrder(value: string | undefined): FallbackProviderId[] | null {
+  if (!value?.trim()) {
+    return null;
+  }
+
+  const allowed = new Set<string>([
+    "openrouter",
+    "minimax",
+    "google-ai-studio",
+    "google-ai-studio-secondary",
+  ]);
+  const parsed = value
+    .split(",")
+    .map((part) => part.trim())
+    .filter((part): part is FallbackProviderId => allowed.has(part));
+
+  return parsed.length > 0 ? parsed : null;
+}
+
+function resolveTranslationFallbackOrder(
+  env: NodeJS.ProcessEnv = process.env,
+  hostedDemo = isHostedDemo,
+): FallbackProviderId[] {
+  return (
+    parseFallbackOrder(env.TRANSLATION_FALLBACK_ORDER) ??
+    (hostedDemo ? HOSTED_DEMO_FALLBACK_ORDER : DEFAULT_FALLBACK_ORDER)
+  );
+}
+
+function buildTranslationFallbackSteps(
+  text: string,
+  model: string | undefined,
+  sourceLang: TranslationLanguage,
+  targetLang: TranslationLanguage,
+  order: FallbackProviderId[] = resolveTranslationFallbackOrder(),
+): FallbackStep[] {
+  const catalog: Record<FallbackProviderId, FallbackStep> = {
+    openrouter: {
+      available: true,
+      run: () => translateWithOpenRouterModel(text, model || DEFAULT_MODEL, sourceLang, targetLang),
+    },
+    minimax: {
+      fallback: "MiniMax M3",
+      available: Boolean(process.env.MINIMAX_API_KEY),
+      run: () => translateWithMinimax(text, MINIMAX_FALLBACK_MODEL, sourceLang, targetLang),
+    },
+    "google-ai-studio": {
+      fallback: "Gemini",
+      available: Boolean(process.env.GOOGLE_AI_STUDIO_API_KEY),
+      run: () => translateWithGoogleAI(text, GOOGLE_AI_PRIMARY_FALLBACK_MODEL, sourceLang, targetLang),
+    },
+    "google-ai-studio-secondary": {
+      fallback: "Gemma 4 31B IT",
+      available: Boolean(process.env.GOOGLE_AI_STUDIO_API_KEY),
+      run: () => translateWithGoogleAI(text, GOOGLE_AI_SECONDARY_FALLBACK_MODEL, sourceLang, targetLang),
+    },
+  };
+
+  return order.map((id) => catalog[id]);
 }
 
 async function translateWithFallbackChain(
@@ -81,41 +171,20 @@ async function translateWithFallbackChain(
   sourceLang: TranslationLanguage,
   targetLang: TranslationLanguage,
 ): Promise<FallbackResult> {
-  // Free-only ordered fallback chain (no paid OpenRouter):
-  //   1. OpenRouter — inclusionai/ling-3.0-flash:free (or the selected OpenRouter model)
-  //   2. Gemma 4 26B A4B  (Google AI Studio)
-  //   3. Gemma 4 31B IT   (Google AI Studio)
-  //   4. MiniMax M2.7
-  const steps: Array<{ fallback?: string; available: boolean; run: () => Promise<string> }> = [
-    {
-      available: true,
-      run: () => translateWithOpenRouterModel(text, model || DEFAULT_MODEL, sourceLang, targetLang),
-    },
-    {
-      fallback: "Gemma 4 26B A4B",
-      available: Boolean(process.env.GOOGLE_AI_STUDIO_API_KEY),
-      run: () => translateWithGoogleAI(text, GOOGLE_AI_PRIMARY_FALLBACK_MODEL, sourceLang, targetLang),
-    },
-    {
-      fallback: "Gemma 4 31B IT",
-      available: Boolean(process.env.GOOGLE_AI_STUDIO_API_KEY),
-      run: () => translateWithGoogleAI(text, GOOGLE_AI_SECONDARY_FALLBACK_MODEL, sourceLang, targetLang),
-    },
-    {
-      fallback: "MiniMax M2.7",
-      available: Boolean(process.env.MINIMAX_API_KEY),
-      run: () => translateWithMinimax(text, MINIMAX_FALLBACK_MODEL, sourceLang, targetLang),
-    },
-  ];
-
+  // Free-only ordered fallback chain (no paid OpenRouter).
+  // Hosted demo default: OpenRouter → MiniMax → Gemini.
+  // Self-host default: OpenRouter → Gemini → Gemma 31B → MiniMax.
+  const steps = buildTranslationFallbackSteps(text, model, sourceLang, targetLang);
   let lastError: unknown = null;
+  let attempted = 0;
 
-  for (const [index, step] of steps.entries()) {
+  for (const step of steps) {
     if (!step.available) continue;
+    attempted += 1;
 
     try {
       const translation = await step.run();
-      return index === 0 ? { translation } : { translation, fallback: step.fallback };
+      return attempted === 1 ? { translation } : { translation, fallback: step.fallback };
     } catch (error) {
       lastError = error;
       console.error(
@@ -307,14 +376,26 @@ app.get("/api/ollama/status", async (_req, res) => {
 });
 
 app.get("/api/whisper/status", (_req, res) => {
+  if (isHostedDemo) {
+    res.json({ ready: false, loading: false, model: null, disabled: true, reason: "Whisper STT is disabled on the hosted demo." });
+    return;
+  }
   res.json(getWhisperStatus());
 });
 
 app.get("/api/whisper/model", (_req, res) => {
+  if (isHostedDemo) {
+    res.status(409).json({ error: "Whisper STT is disabled on the hosted demo." });
+    return;
+  }
   res.json({ model: getWhisperModelName() });
 });
 
 app.get("/api/device-audio/status", async (_req, res) => {
+  if (isHostedDemo) {
+    res.json({ available: false, reason: "Device audio capture is disabled on the hosted demo.", platform: process.platform, ffmpegFound: false });
+    return;
+  }
   try {
     const status = await getDeviceAudioStatus();
     res.json(status);
@@ -325,6 +406,15 @@ app.get("/api/device-audio/status", async (_req, res) => {
 });
 
 app.get("/api/transcribe/status", (_req, res) => {
+  if (isHostedDemo || !transcribeRuntime) {
+    res.json({
+      disabled: true,
+      reason: "Backend Whisper transcription is disabled on the hosted demo (browser speech only).",
+      limits: null,
+      metrics: null,
+    });
+    return;
+  }
   res.json({
     limits: {
       host,
@@ -382,6 +472,10 @@ app.post("/api/report", async (req, res) => {
 });
 
 app.post("/api/whisper/model", async (req, res) => {
+  if (isHostedDemo) {
+    res.status(409).json({ error: "Whisper STT is disabled on the hosted demo." });
+    return;
+  }
   const model = req.body?.model as string;
   if (model !== 'tiny' && model !== 'base' && model !== 'small' && model !== 'turbo' && model !== 'turbo-v3') {
     res.status(400).json({ error: 'model must be "tiny", "base", "small", "turbo", or "turbo-v3"' });
@@ -452,7 +546,11 @@ httpServer.listen(port, host, () => {
       for (const addr of addresses) console.log(`    ${addr}`);
     }
   }
-  console.log(`[transcribe] capacity: ${transcription.maxActiveTranscriptions} active, ${transcription.maxWsConnections} ws, queue ${transcription.maxQueueSize}, idle ${transcription.sessionIdleTimeoutMs}ms`);
+  if (isHostedDemo) {
+    console.log("[transcribe] hosted demo mode: browser Web Speech only (Whisper WS disabled)");
+  } else {
+    console.log(`[transcribe] capacity: ${transcription.maxActiveTranscriptions} active, ${transcription.maxWsConnections} ws, queue ${transcription.maxQueueSize}, idle ${transcription.sessionIdleTimeoutMs}ms`);
+  }
 
   if (!isAutoSetupDisabled) {
     // Automatically start background setup
