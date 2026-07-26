@@ -200,7 +200,7 @@ barrier-free-meetings/
 │   ├── App.tsx
 │   ├── components/        # Sidebar, ReportPanel, HistoryPanel, …
 │   ├── hooks/             # useSTT, useWhisperSTT, useHistory, …
-│   ├── services/          # openrouter.ts, gemini.ts, report.ts
+│   ├── services/          # openrouter.ts, report.ts
 │   ├── constants/         # languages, providers, qualityTiers
 │   └── config/            # runtime, transcription support
 ├── landing-page/          # Standalone Vite app for the marketing site

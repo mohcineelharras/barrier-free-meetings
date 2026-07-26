@@ -3,13 +3,12 @@ build/
 dist/
 dist-landing/
 coverage/
+release/
 .worktrees/
-.playwright-mcp/
 .DS_Store
 *.log
 .env*
 !.env.example
-package-lock.json
 __pycache__/
 tools/
 
@@ -19,3 +18,26 @@ tools/
 .playwright-mcp/
 .superpowers/
 .opencode/
+
+# Capacitor / native build leftovers (regenerate with `npx cap add` / `npm run mobile:build`)
+android/.gradle/
+android/local.properties
+android/app/build/
+android/app/src/main/assets/public/
+android/app/src/main/assets/capacitor.config.json
+android/app/src/main/assets/capacitor.plugins.json
+android/capacitor-cordova-android-plugins/
+ios/App/App/public/
+ios/App/App/capacitor.config.json
+ios/App/App/config.xml
+ios/capacitor-cordova-ios-plugins/
+ios/DerivedData/
+*.xcuserdata/
+*.xcworkspace/xcuserdata/
+*.ipa
+*.apk
+*.aab
+
+# Compiled macOS helper (build from scripts/captureSystemAudio.swift)
+scripts/captureSystemAudio
+!scripts/captureSystemAudio.swift

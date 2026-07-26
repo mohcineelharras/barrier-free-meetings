@@ -328,16 +328,16 @@ function getSwiftHelperPath(): string | null {
 
   // Resolve relative to this module's directory
   const moduleDir = path.dirname(fileURLToPath(import.meta.url));
+  // Prefer the compiled helper. Build with:
+  //   swiftc scripts/captureSystemAudio.swift -o scripts/captureSystemAudio
   const possiblePaths = [
     path.resolve(moduleDir, '..', 'scripts', 'captureSystemAudio'),
-    path.resolve(moduleDir, '..', 'scripts', 'captureSystemAudio.swift'),
     path.resolve(process.cwd(), 'scripts', 'captureSystemAudio'),
-    path.resolve(process.cwd(), 'scripts', 'captureSystemAudio.swift'),
     './scripts/captureSystemAudio',
   ];
 
   for (const p of possiblePaths) {
-    if (existsSync(p)) {
+    if (existsSync(p) && !p.endsWith('.swift')) {
       return p;
     }
   }

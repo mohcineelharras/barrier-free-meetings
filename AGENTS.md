@@ -42,10 +42,10 @@ Fullstack TypeScript in a single package — React frontend + Express backend sh
 ## Gotchas
 
 - `npm run lint` is typecheck-only. There is no ESLint or Prettier configured.
-- Backend edits trigger `tsx watch` auto-restart. Frontend edits get Vite HMR — unless `DISABLE_HMR=true` is set (used by AI Studio to prevent flicker).
+- Backend edits trigger `tsx watch` auto-restart. Frontend edits get Vite HMR — unless `DISABLE_HMR=true` is set.
 - `server.ts` uses `dotenv.config()` — env vars are read at startup, not bundled.
 - CORS allows Capacitor origins (`capacitor://localhost`) and matches localhost with any port against the portless default entries.
 - WebSocket transcription flow: client → `wsTranscribe.ts` → `transcriptionSessionManager.ts` → `offline-stt/` (local Whisper via HuggingFace Transformers).
 - No database — session history is `localStorage` only.
 - Translation supports three providers (OpenRouter, Google AI Studio, Ollama). Provider is selected per-request via `provider` query param.
-- The `android/` and `ios/` directories are Capacitor native projects — excluded from `tsconfig.json`.
+- Native `android/` / `ios/` trees are generated locally with Capacitor (`npx cap add` / `npm run mobile:build`) and are not committed.
