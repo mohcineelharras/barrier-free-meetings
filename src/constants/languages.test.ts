@@ -1,11 +1,18 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { getLanguageName, LANGUAGES } from './languages';
+import { getLanguageCode, getLanguageName, LANGUAGES } from './languages';
 
 test('language picker includes Turkish', () => {
   assert.ok(LANGUAGES.some((language) => language.code === 'tr-TR' && language.name === 'Turkish'));
   assert.equal(getLanguageName('tr-TR'), 'Turkish');
+});
+
+test('language codes round-trip from saved display names', () => {
+  assert.equal(getLanguageCode('zh-CN'), 'zh-CN');
+  assert.equal(getLanguageCode('Chinese / Mandarin'), 'zh-CN');
+  assert.equal(getLanguageCode('French'), 'fr-FR');
+  assert.equal(getLanguageCode('not-a-language'), 'und');
 });
 
 test('language picker offers practical Chinese meeting choices', () => {

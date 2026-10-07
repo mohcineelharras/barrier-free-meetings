@@ -6,6 +6,9 @@ import {
   buildSparseReport,
   fitTranscriptToBudget,
   generateReport,
+  parseReportSegments,
+  REPORT_MAX_SEGMENT_CHARS,
+  REPORT_MAX_SEGMENTS,
   shouldUseSparseReportFallback,
 } from "./report";
 
@@ -187,4 +190,21 @@ test("generateReport still calls the selected OpenRouter model for short transcr
       process.env.OPENROUTER_API_KEY = originalApiKey;
     }
   }
+});
+
+test("parseReportSegments keeps transcript fields and rejects oversized payloads", () => {
+  assert.deepEqual(
+    parseReportSegments([{ original: "你好", translated: "Bonjour", id: "extra" }]),
+    [{ original: "你好", translated: "Bonjour" }],
+  );
+
+  assert.throws(
+    () => parseReportSegments(Array.from({ length: REPORT_MAX_SEGMENTS + 1 }, () => ({ original: "a", translated: "b" }))),
+    /at most/,
+  );
+  assert.throws(
+    () => parseReportSegments([{ original: "a".repeat(REPORT_MAX_SEGMENT_CHARS + 1), translated: "b" }]),
+    /too long/,
+  );
+  assert.throws(() => parseReportSegments([{ original: "a" }]), /translated strings/);
 });

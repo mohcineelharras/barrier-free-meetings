@@ -40,11 +40,12 @@ export function LiveDemoFrame() {
         </span>
       </div>
 
-      <div className="demo-toolbar" role="tablist" aria-label="Demo scenarios">
+      <div className="demo-toolbar" role="group" aria-label="Demo scenarios">
         {landingContent.demoScenarios.map((item) => (
           <button
             key={item.id}
             type="button"
+            aria-pressed={item.id === scenarioId}
             className={item.id === scenarioId ? 'scenario-pill active' : 'scenario-pill'}
             onClick={() => setScenarioId(item.id)}
           >
@@ -62,6 +63,7 @@ export function LiveDemoFrame() {
           {timeline.slice(0, visibleCount).map((line) => (
             <motion.p
               key={`${scenario.id}-${line.delayMs}-o`}
+              lang="zh-CN"
               className="demo-line"
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
@@ -80,6 +82,7 @@ export function LiveDemoFrame() {
           {timeline.slice(0, visibleCount).map((line) => (
             <motion.p
               key={`${scenario.id}-${line.delayMs}-t`}
+              lang="fr-FR"
               className="demo-line demo-line--translated"
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}

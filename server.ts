@@ -15,6 +15,7 @@ import {
   parseTranslateRequest,
   translateWithOpenRouterModel,
   DEFAULT_MODEL,
+  TRANSLATION_MAX_CHARS,
   type TranslationLanguage,
 } from "./server/translate.js";
 import { verifyLanguage } from "./server/languageVerification.js";
@@ -25,10 +26,12 @@ import { fetchGoogleAIModels, translateWithGoogleAI } from "./server/googleai.js
 import { getSetupStatus, runSetup } from "./server/setup.js";
 import { getWhisperStatus, getWhisperModelName, setWhisperModel, setWhisperTask, type WhisperModelName } from "./server/whisper.js";
 import { getDeviceAudioStatus } from "./server/deviceAudioCapture.js";
-import { generateReport, type ReportSegment } from "./server/report.js";
+import { generateReport, parseReportSegments, ReportRequestError } from "./server/report.js";
 import { getServerRuntimeConfig } from "./server/runtimeConfig.js";
 import { attachWebSocketServer } from "./server/wsTranscribe.js";
 import { buildCorsHeaders } from "./server/cors.js";
+import { buildSecurityHeaders } from "./server/securityHeaders.js";
+import { createRateLimiter } from "./server/httpRateLimit.js";
 
 const app = express();
 const httpServer = createServer(app);
@@ -41,8 +44,40 @@ const isAutoSetupDisabled =
   process.env.DISABLE_AUTO_SETUP === "1" ||
   process.env.DISABLE_AUTO_SETUP === "true" ||
   isHostedDemo;
+const securityHeaders = buildSecurityHeaders({ isProduction, isHostedDemo });
+const translationRateLimit = createRateLimiter({ windowMs: 60_000, max: 60 });
+const setupRateLimit = createRateLimiter({ windowMs: 60_000, max: 6 });
+
+if (
+  isProduction &&
+  process.env.CORS_ALLOWED_ORIGINS?.split(",").some((origin) => origin.trim() === "*") &&
+  process.env.ALLOW_WILDCARD_CORS !== "1" &&
+  process.env.ALLOW_WILDCARD_CORS !== "true"
+) {
+  console.warn("[cors] Ignoring CORS_ALLOWED_ORIGINS=* in production. Set ALLOW_WILDCARD_CORS=1 only if every website should be able to call this server.");
+}
+
+function clientAddress(req: express.Request): string {
+  return (req.socket.remoteAddress ?? "unknown").replace(/^::ffff:/, "");
+}
+
+function enforceRateLimit(
+  req: express.Request,
+  res: express.Response,
+  take: ReturnType<typeof createRateLimiter>,
+): boolean {
+  const decision = take(clientAddress(req));
+  if (decision.allowed) return true;
+  res.setHeader("Retry-After", String(decision.retryAfterSeconds));
+  res.status(429).json({ error: "Too many requests. Please wait a moment." });
+  return false;
+}
 
 app.use((req, res, next) => {
+  for (const [key, value] of Object.entries(securityHeaders)) {
+    res.setHeader(key, value);
+  }
+
   const headers = buildCorsHeaders(req.headers.origin);
   if (headers) {
     for (const [key, value] of Object.entries(headers)) {
@@ -228,17 +263,19 @@ app.get("/api/models", async (req, res) => {
       res.status(503).json({ error: "MiniMax is not configured. Set MINIMAX_API_KEY." });
       return;
     }
-    if (error instanceof Error) {
-      res.status(502).json({ error: error.message });
-      return;
-    }
     res.status(502).json({ error: "Failed to fetch available models." });
   }
 });
 
 app.post("/api/translate", async (req, res) => {
+  if (!enforceRateLimit(req, res, translationRateLimit)) return;
+
   try {
     const text = parseTranslateRequest(req.body);
+    if (typeof req.body?.model === "string" && req.body.model.length > 200) {
+      res.status(400).json({ error: "model is too long." });
+      return;
+    }
     const model =
       typeof req.body?.model === "string" ? req.body.model : undefined;
     const { sourceLang, targetLang } = parseTranslationLanguages(
@@ -322,10 +359,16 @@ app.post("/api/translate", async (req, res) => {
 });
 
 app.post("/api/verify-language", async (req, res) => {
+  if (!enforceRateLimit(req, res, translationRateLimit)) return;
+
   try {
     const text = typeof req.body?.text === "string" ? req.body.text.trim() : "";
     if (!text) {
       res.status(400).json({ error: "text is required" });
+      return;
+    }
+    if (text.length > TRANSLATION_MAX_CHARS) {
+      res.status(400).json({ error: "text is too long." });
       return;
     }
 
@@ -344,7 +387,7 @@ app.post("/api/verify-language", async (req, res) => {
     res.json({ isValid });
   } catch (error) {
     console.error("[api] verify-language failed:", error);
-    res.status(200).json({ isValid: true, error: error instanceof Error ? error.message : "Verification error" });
+    res.status(200).json({ isValid: true });
   }
 });
 
@@ -356,7 +399,8 @@ app.get("/api/setup/status", (_req, res) => {
   res.json(getSetupStatus());
 });
 
-app.post("/api/setup/start", (_req, res) => {
+app.post("/api/setup/start", (req, res) => {
+  if (!enforceRateLimit(req, res, setupRateLimit)) return;
   if (isAutoSetupDisabled) {
     res.status(409).json({ error: "Local setup is disabled for this deployment." });
     return;
@@ -435,20 +479,17 @@ app.get("/api/transcribe/status", (_req, res) => {
 });
 
 app.post("/api/report", async (req, res) => {
+  if (!enforceRateLimit(req, res, translationRateLimit)) return;
+
   try {
-    const { segments, sourceLang, targetLang, reportLang, provider, model } = req.body as {
-      segments?: ReportSegment[];
+    const { sourceLang, targetLang, reportLang, provider, model } = req.body as {
       sourceLang?: string;
       targetLang?: string;
       reportLang?: string;
       provider?: string;
       model?: string;
     };
-
-    if (!Array.isArray(segments) || segments.length === 0) {
-      res.status(400).json({ error: "segments array is required and must not be empty." });
-      return;
-    }
+    const segments = parseReportSegments(req.body?.segments);
 
     const report = await generateReport(
       segments,
@@ -469,12 +510,17 @@ app.post("/api/report", async (req, res) => {
       res.status(502).json({ error: `Report generation failed (${error.upstreamStatus}).` });
       return;
     }
+    if (error instanceof ReportRequestError) {
+      res.status(error.statusCode).json({ error: error.message });
+      return;
+    }
     console.error("[api] report failed:", error);
     res.status(502).json({ error: "Failed to generate report." });
   }
 });
 
 app.post("/api/whisper/model", async (req, res) => {
+  if (!enforceRateLimit(req, res, setupRateLimit)) return;
   if (isHostedDemo) {
     res.status(409).json({ error: "Whisper STT is disabled on the hosted demo." });
     return;

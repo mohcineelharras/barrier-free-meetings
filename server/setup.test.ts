@@ -24,6 +24,12 @@ test('getOllamaBaseUrl respects OLLAMA_HOST with and without protocol', () => {
   assert.equal(getOllamaBaseUrl({}), 'http://127.0.0.1:11434');
 });
 
+test('getOllamaBaseUrl rejects metadata addresses, credentials, and non-HTTP schemes', () => {
+  assert.throws(() => getOllamaBaseUrl({ OLLAMA_HOST: 'http://169.254.169.254' }), /blocked address/);
+  assert.throws(() => getOllamaBaseUrl({ OLLAMA_HOST: 'http://user:pass@127.0.0.1:11434' }), /credentials/);
+  assert.throws(() => getOllamaBaseUrl({ OLLAMA_HOST: 'file:///etc/passwd' }), /http or https/);
+});
+
 test('getOllamaDownloadUrl uses current Ollama release asset names', () => {
   assert.match(getOllamaDownloadUrl('darwin', 'arm64'), /ollama-darwin\.tgz$/);
   assert.match(getOllamaDownloadUrl('linux', 'x64'), /ollama-linux-amd64\.tar\.zst$/);

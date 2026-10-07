@@ -40,6 +40,17 @@ test('App renders start recording button', () => {
   const html = renderToStaticMarkup(<App />);
 
   assert.match(html, /Start Recording/);
+  assert.match(html, /<button type="button"[^>]*aria-pressed="false"[^>]*>[\s\S]*Start Recording/);
+});
+
+test('App exposes a skip link, conversation landmark, and cloud-translation disclosure', () => {
+  const html = renderToStaticMarkup(<App />);
+
+  assert.match(html, /Skip to conversation/);
+  assert.match(html, /<main[^>]*id="conversation"/);
+  assert.match(html, /aria-label="Settings"/);
+  assert.match(html, /Cloud translation sends each line to the selected provider/);
+  assert.match(html, /aria-labelledby="input-language-label"/);
 });
 
 test('App shows placeholder when no segments exist', () => {

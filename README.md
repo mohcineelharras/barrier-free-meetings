@@ -190,6 +190,42 @@ Two paths, chosen automatically based on browser support:
 Set `DEFAULT_WHISPER_MODEL=tiny` (or your preferred size) in `.env` to
 change the boot-time model.
 
+## Accessibility
+
+The meeting surface is built for keyboard, screen reader, and touch use:
+
+- Skip link, settings landmark, and a main conversation region.
+- Icon controls have text names. Session actions stay visible without a hover.
+- Transcript and translation lines carry the language of the text so a screen
+  reader can switch voice.
+- History and report panels are dialogs: Escape closes them, and Tab stays
+  inside until they close.
+- Status changes (recording, errors, setup progress) are exposed to assistive
+  tech, not only by color.
+- Motion is reduced when the operating system asks for it.
+
+Contrast for reading text targets WCAG 2.2 AA (4.5:1). Interactive controls
+target at least 24×24 CSS pixels.
+
+## Privacy
+
+- Session history and saved defaults stay in this browser's `localStorage`.
+  Nothing is written to a project database.
+- Offline / Ollama translation stays on the machine you configured.
+- Online providers (OpenRouter, Google AI Studio, MiniMax) receive the text
+  of each line you translate and any report you generate. The app says so in
+  the translation pane.
+- Server logs do not include transcript text. API keys are sent as headers,
+  not query strings.
+- Do not set `CORS_ALLOWED_ORIGINS=*` on a server that holds API keys.
+  Production ignores that wildcard unless `ALLOW_WILDCARD_CORS=1`.
+
+## Security
+
+Report vulnerabilities privately through
+[GitHub security advisories](https://github.com/mohcineelharras/barrier-free-meetings/security/advisories/new).
+See [SECURITY.md](SECURITY.md).
+
 ## Architecture
 
 Fullstack TypeScript in a single package — React frontend + Express

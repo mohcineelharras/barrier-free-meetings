@@ -241,7 +241,8 @@ export function Sidebar({
     .join(' • ');
 
   return (
-    <div
+    <aside
+      aria-label="Settings"
       className={`flex-shrink-0 flex flex-col border-r border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 transition-all duration-200 ${
         isOpen ? 'w-64' : 'w-12'
       }`}
@@ -255,7 +256,7 @@ export function Sidebar({
         <button
           type="button"
           onClick={() => setIsOpen((v) => !v)}
-          className="ml-auto p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
+          className="ml-auto inline-flex h-8 w-8 items-center justify-center rounded hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-gray-100 transition-colors"
           aria-label={isOpen ? 'Collapse sidebar' : 'Expand sidebar'}
         >
           {isOpen ? <ChevronLeftIcon /> : <ChevronRightIcon />}
@@ -272,8 +273,14 @@ export function Sidebar({
                 Capacitor runs the web app locally, so mobile builds must point to a hosted backend for
                 <span className="font-mono"> /api/* </span>and<span className="font-mono"> /ws/transcribe</span>.
               </div>
-              <input value={apiBaseUrlInput} onChange={(e) => setApiBaseUrlInput(e.target.value)} className={selectClass} placeholder="https://api.example.com" spellCheck={false} />
-              <input value={wsBaseUrlInput} onChange={(e) => setWsBaseUrlInput(e.target.value)} className={selectClass} placeholder="Optional: wss://stream.example.com" spellCheck={false} />
+              <label className="flex flex-col gap-1 text-xs font-medium text-gray-600 dark:text-gray-300">
+                API base URL
+                <input id="mobile-api-base" value={apiBaseUrlInput} onChange={(e) => setApiBaseUrlInput(e.target.value)} className={selectClass} placeholder="https://api.example.com" spellCheck={false} />
+              </label>
+              <label className="flex flex-col gap-1 text-xs font-medium text-gray-600 dark:text-gray-300">
+                WebSocket base URL
+                <input id="mobile-ws-base" value={wsBaseUrlInput} onChange={(e) => setWsBaseUrlInput(e.target.value)} className={selectClass} placeholder="Optional: wss://stream.example.com" spellCheck={false} />
+              </label>
               <div className="flex gap-2">
                 <button type="button" onClick={handleSaveRuntimeConfig} className="flex-1 rounded-lg bg-sky-600 px-2 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-sky-500">Save</button>
                 <button type="button" onClick={handleClearRuntimeConfig} className="rounded-lg border border-gray-200 px-2 py-1.5 text-xs font-semibold text-gray-600 transition-colors hover:bg-gray-100 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800">Clear</button>
@@ -288,17 +295,19 @@ export function Sidebar({
 
           {!runtimeConfig.isHostedDemo && (
             <div className="flex flex-col gap-2">
-              <div className="flex rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 text-xs font-semibold">
+              <div role="group" aria-label="Translation mode" className="flex rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 text-xs font-semibold">
                 <button
                   type="button"
                   onClick={() => handleModeToggle(false)}
-                  className={`flex-1 py-1.5 transition-colors ${!isOffline ? 'bg-blue-600 text-white' : 'bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
+                  aria-pressed={!isOffline}
+                  className={`flex-1 py-1.5 transition-colors ${!isOffline ? 'bg-blue-600 text-white' : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
                 >
                   Online
                 </button>
                 <button
                   type="button"
                   onClick={() => handleModeToggle(true)}
+                  aria-pressed={isOffline}
                   disabled={!transcriptionSupport.supportsOfflineMode}
                   className={`flex-1 py-1.5 flex items-center justify-center gap-1.5 transition-colors ${
                     isOffline
@@ -310,12 +319,17 @@ export function Sidebar({
                 >
                   Offline
                   {isOffline && (
-                    <span className={`h-1.5 w-1.5 rounded-full ${ollamaRunning === true ? 'bg-green-300' : ollamaRunning === false ? 'bg-red-300' : 'bg-white/50'}`} />
+                    <>
+                      <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${ollamaRunning === true ? 'bg-green-300' : ollamaRunning === false ? 'bg-red-300' : 'bg-white/50'}`} />
+                      <span className="sr-only">
+                        {ollamaRunning === true ? 'Ollama connected' : ollamaRunning === false ? 'Ollama not connected' : 'Checking Ollama'}
+                      </span>
+                    </>
                   )}
                 </button>
               </div>
               {!transcriptionSupport.supportsOfflineMode && (
-                <p className="text-xs text-gray-400 dark:text-gray-600">Offline mode is desktop-only.</p>
+                <p className="text-xs text-gray-600 dark:text-gray-300">Offline mode is desktop-only.</p>
               )}
             </div>
           )}
@@ -343,7 +357,14 @@ export function Sidebar({
                 </>
               ) : (
                 <>
-                  <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
+                  <div
+                    role="progressbar"
+                    aria-valuenow={setupStatus.progress}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-label="First-time setup"
+                    className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5"
+                  >
                     <div className="bg-blue-500 h-1.5 rounded-full transition-all duration-300" style={{ width: `${setupStatus.progress}%` }} />
                   </div>
                   <p className="text-xs text-gray-500 dark:text-gray-400">{STEP_LABELS[setupStatus.step] ?? setupStatus.step}</p>
@@ -388,6 +409,7 @@ export function Sidebar({
                       <button
                         type="button"
                         onClick={() => onTranscriptionBackendPreferenceChange('web-speech')}
+                        aria-pressed={transcriptionBackendPreference === 'web-speech'}
                         disabled={!transcriptionSupport.supportsWebSpeechRecognition}
                         className={`flex-1 py-1.5 transition-colors ${
                           transcriptionBackendPreference === 'web-speech'
@@ -402,6 +424,7 @@ export function Sidebar({
                       <button
                         type="button"
                         onClick={() => onTranscriptionBackendPreferenceChange('whisper')}
+                        aria-pressed={transcriptionBackendPreference === 'whisper'}
                         className={`flex-1 py-1.5 transition-colors ${
                           transcriptionBackendPreference === 'whisper'
                             ? 'bg-blue-600 text-white'
@@ -420,7 +443,8 @@ export function Sidebar({
                       key={p.id}
                       type="button"
                       onClick={() => { onProviderChange(p.id); onModelChange(''); }}
-                      className={`flex-1 py-1.5 transition-colors ${selectedProvider === p.id ? 'bg-blue-600 text-white' : 'bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
+                      aria-pressed={selectedProvider === p.id}
+                      className={`flex-1 py-1.5 transition-colors ${selectedProvider === p.id ? 'bg-blue-600 text-white' : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
                     >
                       {p.id === 'google-ai-studio' ? 'Gemini' : p.name}
                     </button>
@@ -432,7 +456,7 @@ export function Sidebar({
                 {error && <p className="text-xs text-red-400">{error}</p>}
                 {!isLoading && !error && models.length === 0 && <p className="text-xs text-gray-500 dark:text-gray-400">{emptyModelsMessage}</p>}
                 {!isLoading && !error && models.length > 0 && (
-                  <select value={selectedModel} onChange={(e) => onModelChange(e.target.value)} className={selectClass}>
+                  <select aria-label="Model" value={selectedModel} onChange={(e) => onModelChange(e.target.value)} className={selectClass}>
                     {models.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
                   </select>
                 )}
@@ -451,7 +475,8 @@ export function Sidebar({
                         key={p.id}
                         type="button"
                         onClick={() => { onProviderChange(p.id); onModelChange(''); }}
-                        className={`flex-1 py-1.5 transition-colors ${selectedProvider === p.id ? 'bg-blue-600 text-white' : 'bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
+                        aria-pressed={selectedProvider === p.id}
+                        className={`flex-1 py-1.5 transition-colors ${selectedProvider === p.id ? 'bg-blue-600 text-white' : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
                       >
                         {p.id === 'google-ai-studio' ? 'Gemini' : p.name}
                       </button>
@@ -466,12 +491,12 @@ export function Sidebar({
                   <>
                     <div className="flex rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 text-xs font-semibold">
                       {(['low', 'medium', 'high'] as QualityTier[]).map((tier) => (
-                        <button key={tier} type="button" onClick={() => onOllamaTierChange(tier)} className={TIER_BUTTON_CLASS(ollamaTier === tier)}>
+                        <button key={tier} type="button" aria-pressed={ollamaTier === tier} onClick={() => onOllamaTierChange(tier)} className={TIER_BUTTON_CLASS(ollamaTier === tier)}>
                           {QUALITY_TIER_LABELS[tier]}
                         </button>
                       ))}
                     </div>
-                    <p className="text-xs text-gray-400 dark:text-gray-600">{OLLAMA_TIER_RAM[ollamaTier]}</p>
+                    <p className="text-xs text-gray-600 dark:text-gray-300">{OLLAMA_TIER_RAM[ollamaTier]}</p>
                   </>
                 ) : (
                   <>
@@ -479,7 +504,7 @@ export function Sidebar({
                     {error && <p className="text-xs text-red-400">{error}</p>}
                     {!isLoading && !error && models.length === 0 && <p className="text-xs text-gray-500 dark:text-gray-400">{emptyModelsMessage}</p>}
                     {!isLoading && !error && models.length > 0 && (
-                      <select value={selectedModel} onChange={(e) => onModelChange(e.target.value)} className={selectClass}>
+                      <select aria-label="Model" value={selectedModel} onChange={(e) => onModelChange(e.target.value)} className={selectClass}>
                         {models.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
                       </select>
                     )}
@@ -494,7 +519,7 @@ export function Sidebar({
             <Section label="Transcription Quality">
               <div className="flex rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 text-xs font-semibold">
                 {(['low', 'medium', 'high', ...(runtimeConfig.isLocalhost ? ['high-star' as QualityTier] : [])] as QualityTier[]).map((tier) => (
-                    <button key={tier} type="button" onClick={() => onWhisperTierChange(tier)} className={TIER_BUTTON_CLASS(whisperTier === tier)}>
+                    <button key={tier} type="button" aria-pressed={whisperTier === tier} onClick={() => onWhisperTierChange(tier)} className={TIER_BUTTON_CLASS(whisperTier === tier)}>
                       {QUALITY_TIER_LABELS[tier]}
                       {tier === 'high-star' && (
                         <span className="ml-0.5 px-0.5 py-px text-[7px] font-bold rounded bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 uppercase tracking-wider leading-none">β</span>
@@ -502,20 +527,20 @@ export function Sidebar({
                   </button>
                 ))}
               </div>
-              <p className="text-xs text-gray-400 dark:text-gray-600">{WHISPER_TIER_RAM[whisperTier]}</p>
+              <p className="text-xs text-gray-600 dark:text-gray-300">{WHISPER_TIER_RAM[whisperTier]}</p>
             </Section>
           )}
 
           {whisperTier !== 'high-star' && (
-          <Section label="Input Language">
-            <select value={sourceLanguage} onChange={(e) => onSourceLanguageChange(e.target.value)} className={selectClass}>
+          <Section label="Input Language" labelId="input-language-label">
+            <select id="input-language" aria-labelledby="input-language-label" value={sourceLanguage} onChange={(e) => onSourceLanguageChange(e.target.value)} className={selectClass}>
               {LANGUAGES.map((l) => <option key={l.code} value={l.code}>{l.name}</option>)}
             </select>
           </Section>
           )}
 
-          <Section label="Output Language">
-            <select value={targetLanguage} onChange={(e) => onTargetLanguageChange(e.target.value)} className={selectClass}>
+          <Section label="Output Language" labelId="output-language-label">
+            <select id="output-language" aria-labelledby="output-language-label" value={targetLanguage} onChange={(e) => onTargetLanguageChange(e.target.value)} className={selectClass}>
               {LANGUAGES.map((l) => <option key={l.code} value={l.code}>{l.name}</option>)}
             </select>
           </Section>
@@ -526,7 +551,7 @@ export function Sidebar({
           )}
         </div>
       )}
-    </div>
+    </aside>
   );
 }
 
@@ -551,7 +576,8 @@ function AudioInputSection({
         <button
           type="button"
           onClick={() => onAudioSourceChange('microphone')}
-          className={`flex-1 py-1.5 flex items-center justify-center gap-1.5 transition-colors ${audioSource === 'microphone' ? 'bg-blue-600 text-white' : 'bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
+          aria-pressed={audioSource === 'microphone'}
+          className={`flex-1 py-1.5 flex items-center justify-center gap-1.5 transition-colors ${audioSource === 'microphone' ? 'bg-blue-600 text-white' : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
         >
           <MicSmallIcon /> Mic
         </button>
@@ -559,6 +585,7 @@ function AudioInputSection({
           <button
             type="button"
             onClick={() => onAudioSourceChange('system')}
+            aria-pressed={audioSource === 'system'}
             className={`flex-1 py-1.5 flex items-center justify-center gap-1.5 transition-colors ${
               audioSource === 'system'
                 ? 'bg-blue-600 text-white'
@@ -570,12 +597,12 @@ function AudioInputSection({
         )}
       </div>
       {audioSource === 'system' && (
-        <p className="text-xs text-gray-400 dark:text-gray-600">
+        <p className="text-xs text-gray-600 dark:text-gray-300">
           Chrome/Edge will ask you to share a tab or window — enable Share audio / Share tab audio.
         </p>
       )}
       {!transcriptionSupport.supportsSystemAudioCapture && (
-        <p className="text-xs text-gray-400 dark:text-gray-600">Mobile-safe mode records from the microphone only.</p>
+        <p className="text-xs text-gray-600 dark:text-gray-300">Mobile-safe mode records from the microphone only.</p>
       )}
     </Section>
   );
@@ -613,6 +640,7 @@ function DefaultsSection({
         <button
           type="button"
           onClick={handleSave}
+          aria-live="polite"
           className="flex-1 rounded-lg bg-blue-600 px-2 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-blue-500"
         >
           {defaultsSaved ? 'Saved ✓' : 'Save as default'}
@@ -625,17 +653,17 @@ function DefaultsSection({
           Reset
         </button>
       </div>
-      <p className="text-xs text-gray-400 dark:text-gray-600">
+      <p className="text-xs text-gray-600 dark:text-gray-300">
         Remembers your provider, model, and languages on this browser for next time.
       </p>
     </Section>
   );
 }
 
-function Section({ label, children }: { label: string; children: ReactNode }) {
+function Section({ label, children, labelId }: { label: string; children: ReactNode; labelId?: string }) {
   return (
     <div className="flex flex-col gap-2">
-      <span className="text-xs font-medium text-gray-500 dark:text-gray-400">{label}</span>
+      <span id={labelId} className="text-xs font-medium text-gray-600 dark:text-gray-300">{label}</span>
       {children}
     </div>
   );
@@ -680,7 +708,7 @@ function CollapsibleSection({
 
 function ChevronLeftIcon() {
   return (
-    <svg
+    <svg aria-hidden="true"
       xmlns="http://www.w3.org/2000/svg"
       viewBox="0 0 24 24"
       fill="none"
@@ -697,7 +725,7 @@ function ChevronLeftIcon() {
 
 function ChevronRightIcon() {
   return (
-    <svg
+    <svg aria-hidden="true"
       xmlns="http://www.w3.org/2000/svg"
       viewBox="0 0 24 24"
       fill="none"
@@ -714,7 +742,7 @@ function ChevronRightIcon() {
 
 function MicSmallIcon() {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+    <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
       stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"
       className="h-3 w-3">
       <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
@@ -726,7 +754,7 @@ function MicSmallIcon() {
 
 function MonitorIcon() {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+    <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
       stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"
       className="h-3 w-3">
       <rect x="2" y="3" width="20" height="14" rx="2" />
@@ -737,7 +765,7 @@ function MonitorIcon() {
 
 function GearIcon() {
   return (
-    <svg
+    <svg aria-hidden="true"
       xmlns="http://www.w3.org/2000/svg"
       viewBox="0 0 24 24"
       fill="none"
