@@ -35,6 +35,46 @@ export interface ReportSegment {
   translated: string;
 }
 
+export const REPORT_MAX_SEGMENTS = 400;
+export const REPORT_MAX_SEGMENT_CHARS = 4_000;
+
+export class ReportRequestError extends Error {
+  readonly statusCode = 400;
+
+  constructor(message: string) {
+    super(message);
+    this.name = 'ReportRequestError';
+  }
+}
+
+export function parseReportSegments(input: unknown): ReportSegment[] {
+  if (!Array.isArray(input) || input.length === 0) {
+    throw new ReportRequestError('segments array is required and must not be empty.');
+  }
+
+  if (input.length > REPORT_MAX_SEGMENTS) {
+    throw new ReportRequestError(`segments must contain at most ${REPORT_MAX_SEGMENTS} items.`);
+  }
+
+  return input.map((item, index) => {
+    if (!item || typeof item !== 'object') {
+      throw new ReportRequestError(`segments[${index}] must be an object.`);
+    }
+
+    const original = (item as { original?: unknown }).original;
+    const translated = (item as { translated?: unknown }).translated;
+    if (typeof original !== 'string' || typeof translated !== 'string') {
+      throw new ReportRequestError(`segments[${index}] must include original and translated strings.`);
+    }
+
+    if (original.length > REPORT_MAX_SEGMENT_CHARS || translated.length > REPORT_MAX_SEGMENT_CHARS) {
+      throw new ReportRequestError(`segments[${index}] is too long.`);
+    }
+
+    return { original, translated };
+  });
+}
+
 function getDisplayText(segment: ReportSegment): string {
   const translated = segment.translated?.trim();
   if (translated && !translated.startsWith('[')) {

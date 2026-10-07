@@ -57,4 +57,9 @@ test('HistoryPanel uses explicit fallback copy when a saved session has no repor
 
   assert.match(html, /Generate now/);
   assert.doesNotMatch(html, />Generate Report</);
+  assert.match(html, /role="dialog"/);
+  assert.match(html, /aria-modal="true"/);
+  assert.match(html, /Delete Bonjour/);
+  assert.match(html, /Sessions stay on this device/);
+  assert.doesNotMatch(html, /opacity-0/);
 });

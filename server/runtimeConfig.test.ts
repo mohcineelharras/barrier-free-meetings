@@ -43,6 +43,23 @@ test('isOriginAllowed supports the default mobile origins and explicit allow lis
   assert.equal(isOriginAllowed('https://evil.example.com', origins), false);
 });
 
+test('production ignores a wildcard CORS origin unless it is explicitly enabled', () => {
+  const blocked = getServerRuntimeConfig({
+    NODE_ENV: 'production',
+    CORS_ALLOWED_ORIGINS: '*',
+  });
+  const allowed = getServerRuntimeConfig({
+    NODE_ENV: 'production',
+    CORS_ALLOWED_ORIGINS: '*',
+    ALLOW_WILDCARD_CORS: '1',
+  });
+
+  assert.equal(blocked.corsAllowedOrigins.includes('*'), false);
+  assert.equal(isOriginAllowed('https://evil.example.com', blocked.corsAllowedOrigins), false);
+  assert.equal(allowed.corsAllowedOrigins.includes('*'), true);
+  assert.equal(isOriginAllowed('https://evil.example.com', allowed.corsAllowedOrigins), true);
+});
+
 test('hosted Spaces runtime defaults to three active transcription sessions', () => {
   const config = getServerRuntimeConfig({
     HF_SPACES: 'true',

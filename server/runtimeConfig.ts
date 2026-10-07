@@ -95,6 +95,19 @@ function dedupeOrigins(origins: string[]): string[] {
   return Array.from(new Set(origins));
 }
 
+function allowsWildcardCors(env: NodeJS.ProcessEnv): boolean {
+  return env.ALLOW_WILDCARD_CORS === '1' || env.ALLOW_WILDCARD_CORS === 'true';
+}
+
+function sanitizeOrigins(origins: string[], env: NodeJS.ProcessEnv): string[] {
+  const isProduction = env.NODE_ENV === 'production';
+  if (!isProduction || allowsWildcardCors(env)) {
+    return origins;
+  }
+
+  return origins.filter((origin) => origin !== '*');
+}
+
 export function isOriginAllowed(origin: string, allowedOrigins: string[]): boolean {
   if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
     return true;
@@ -125,11 +138,11 @@ export function getServerRuntimeConfig(env = process.env): ServerRuntimeConfig {
   const defaultMaxQueueSize = hostedSpace ? 3 : 24;
 
   return {
-    corsAllowedOrigins: dedupeOrigins([
+    corsAllowedOrigins: sanitizeOrigins(dedupeOrigins([
       ...DEFAULT_CORS_ALLOWED_ORIGINS,
       ...getHostedSpaceOrigins(env),
       ...parseAllowedOrigins(env.CORS_ALLOWED_ORIGINS),
-    ]),
+    ]), env),
     host: env.HOST ?? (isProduction ? '0.0.0.0' : '127.0.0.1'),
     port: readPositiveInt(env.PORT, DEFAULT_PORT, { max: 65_535 }),
     transcription: {

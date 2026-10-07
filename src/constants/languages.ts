@@ -24,3 +24,8 @@ export const LANGUAGES: Language[] = [
 export function getLanguageName(code: string): string {
   return LANGUAGES.find((l) => l.code === code)?.name ?? code;
 }
+
+export function getLanguageCode(nameOrCode: string): string {
+  const match = LANGUAGES.find((language) => language.code === nameOrCode || language.name === nameOrCode);
+  return match?.code ?? 'und';
+}

@@ -52,6 +52,21 @@ requests.
 4. If the provider needs an API key, add it to `.env.example` with a
    comment explaining where to get one.
 
+## Accessibility
+
+This product exists so people can follow a meeting. Changes to the interface
+should keep that true:
+
+- Prefer a native button, link, or form control over a clickable `div`.
+- Give every icon-only control a text name (`aria-label` or visible text).
+- Keep controls available without hover. Touch and keyboard users never hover.
+- Put `lang` on transcript and translation text when the language is known.
+- Dialogs need a name, `aria-modal`, Escape to close, and a focus loop that
+  returns focus to the control that opened them.
+- Do not convey state with color alone.
+- New UI should have a `renderToStaticMarkup` test for the accessible name
+  and role, plus a behavior test when the logic is pure.
+
 ## Pull request checklist
 
 - [ ] Tests pass locally (`npm test`).
@@ -59,6 +74,7 @@ requests.
 - [ ] New env vars are documented in `.env.example`.
 - [ ] New behavior is reflected in `README.md` if user-visible.
 - [ ] No secrets, API keys, or `.env` files are included in the diff.
+- [ ] UI changes keep keyboard, screen reader, and touch paths working.
 
 ## Reporting bugs
 
@@ -69,8 +85,9 @@ Open a GitHub issue with:
 - Server log snippet (with API keys redacted).
 - Browser console snippet if the issue is UI-related.
 
-For security issues, please email the maintainer directly rather than
-opening a public issue.
+For security issues, open a private advisory at
+<https://github.com/mohcineelharras/barrier-free-meetings/security/advisories/new>
+instead of a public issue. See [SECURITY.md](SECURITY.md).
 
 ## License
 

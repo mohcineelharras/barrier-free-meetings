@@ -33,11 +33,10 @@ test("isGoogleAITranslationModel keeps text chat models and drops image/media mo
 
 test("fetchGoogleAIModels maps Gemini REST models to selectable text models", async () => {
   process.env.GOOGLE_AI_STUDIO_API_KEY = "test-key";
-  globalThis.fetch = (async (input) => {
-    assert.equal(
-      input,
-      "https://generativelanguage.googleapis.com/v1beta/models?key=test-key",
-    );
+  globalThis.fetch = (async (input, init) => {
+    assert.equal(input, "https://generativelanguage.googleapis.com/v1beta/models");
+    assert.equal(new Headers(init?.headers).get("x-goog-api-key"), "test-key");
+    assert.equal(String(input).includes("key="), false);
 
     return new Response(
       JSON.stringify({

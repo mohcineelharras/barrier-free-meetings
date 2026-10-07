@@ -90,7 +90,8 @@ export async function fetchGoogleAIModels(): Promise<{ id: string; name: string 
 
   let res: Response;
   try {
-    res = await fetch(`${GOOGLE_AI_MODELS_URL}?key=${encodeURIComponent(key)}`, {
+    res = await fetch(GOOGLE_AI_MODELS_URL, {
+      headers: { 'x-goog-api-key': key },
       signal: AbortSignal.timeout(5000),
     });
   } catch {
